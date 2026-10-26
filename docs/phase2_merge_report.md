@@ -1,124 +1,131 @@
-# 第二阶段报告：合并事件定义（gap < 2）与 2022 小区域试点
+# Phase-2 report: merged event definition (gap < 2) and 2022 small-region pilot
 
-本报告落实事件定义（连续 ≥3 天 + 间隔 < 2 天合并）并产出 2022 年
-小区域试点结果。**本轮未下载 ERA5、未运行能源计算、未重跑 QM/QDM 或旧 17 模式
-项目、未做 git 操作、未覆盖任何原始数据或既有结果**；新结果写入独立目录
-`results_merge/`，`results_fixed/` 保留作核对。
+This report implements the event definition (consecutive ≥3 days + merge at gap < 2 days) and produces the 2022
+small-region pilot results. **This round downloaded no ERA5, ran no energy computation, did not rerun QM/QDM or the old 17-model
+project, performed no git operations, and did not overwrite any original data or existing results**; new results were written to the separate directory
+`results_merge/`, with `results_fixed/` kept for verification.
 
 ---
 
-## 1. 事件定义（已落实）
+## 1. Event definition (implemented)
 
-- **阈值（不变）**：每格点、每日历日 P90，基准期 1981–2010，5 日中心窗口，最小
-  样本 100，Tmax 严格大于阈值。
-- **合格热浪段**：连续 ≥ 3 天热日。
-- **合并**：相邻合格热段在**间隔 < 2 天**（按完整间隔日数 = 仅 1 天）且间隔日为
-  **有效凉日**（Tmax 与阈值均有效、`Tmax ≤ 阈值`）时合并；**链式合并**传递；缺测
-  **绝不**合并；孤立超阈值日**阻断**合并且不被吸收。
-- **逐日分类**（0 缺测/不可判定、1 凉日、2 孤立超阈值日、3 热浪日、4 间隔日），
-  缺测/不可判定**不编码为普通非热浪日**。
+- **Threshold (unchanged)**: per grid cell, per calendar day P90, baseline period 1981–2010, 5-day centered window, minimum
+  sample 100, Tmax strictly greater than the threshold.
+- **Qualified heat segment**: consecutive ≥ 3 days of hot days.
+- **Merge**: adjacent qualified heat segments merge when the **gap < 2 days** (by complete gap-day count = only 1 day) and
+  the gap day is a **valid cool day** (both Tmax and threshold valid, `Tmax ≤ threshold`); **chained merge** is transitive; missing days
+  **never** merge; an isolated exceedance day **blocks** merging and is not absorbed.
+- **Per-day classification** (0 missing/undecidable, 1 cool day, 2 isolated exceedance day, 3 heatwave day, 4 gap day),
+  with missing/undecidable **not encoded as ordinary non-heatwave days**.
 
-完整说明见 `docs/heatwave_method_v2.md`；实现见 `scripts/hw_merge_lib.py`。
+The full description is in `docs/heatwave_method_v2.md`; the implementation is in `scripts/hw_merge_lib.py`.
 
-## 2. 测试结果
+## 2. Test results
 
-**合成单元测试**（`scripts/hw_merge_test.py`，**19/19 通过**），覆盖要求用例：
+**Synthetic unit tests** (`scripts/hw_merge_test.py`, **19/19 pass**), covering the required cases:
 
-| 用例 | 结果 |
+| Case | Result |
 |---|---|
-| 热3—凉1—热3 | ✅ 合并（1 事件、2 段、6 热日、1 间隔日、跨度 7） |
-| 热3—凉2—热3 | ✅ **不**合并（2 事件） |
-| 热2—凉1—热2 | ✅ 不构成事件（两段均 <3 天，孤立即代码 2） |
-| 热3—缺1—热3 | ✅ **不**合并（缺测绝不合并，缺测日代码 0） |
-| 热3—凉1—热3—凉1—热3 | ✅ 链式合并（1 事件、3 段、2 间隔、跨度 11） |
-| 合格段夹孤立超阈值日 | ✅ **不**合并；孤立热日 = 代码 2（既非间隔日、也非热浪日） |
-| 缺测中断连续段 | ✅ 保留（`HHMH` → 无事件） |
-| 强度仅对热浪日 | ✅ 间隔日不计入强度均值 |
-| 缺测日绝不编码为普通日 | ✅ 代码 0 |
+| hot3—cool1—hot3 | ✅ merged (1 event, 2 segments, 6 heatwave days, 1 gap day, span 7) |
+| hot3—cool2—hot3 | ✅ **not** merged (2 events) |
+| hot2—cool1—hot2 | ✅ no event formed (both segments <3 days, isolated = code 2) |
+| hot3—missing1—hot3 | ✅ **not** merged (missing never merges, missing day code 0) |
+| hot3—cool1—hot3—cool1—hot3 | ✅ chained merge (1 event, 3 segments, 2 gaps, span 11) |
+| qualified segment with an isolated exceedance day in between | ✅ **not** merged; isolated hot day = code 2 (neither gap day nor heatwave day) |
+| missing breaks a consecutive run | ✅ preserved (`HHMH` → no event) |
+| intensity over heatwave days only | ✅ gap days not counted in the intensity mean |
+| missing day never encoded as an ordinary day | ✅ code 0 |
 
-**既有严格流水线**（`scripts/hw_pilot.py`，季节边界 + 缺测 QC）**仍 15/15 通过**
-（未改动 `hw_lib.py`）。
+**The existing strict pipeline** (`scripts/hw_pilot.py`, season boundary + missing QC) **still passes 15/15**
+(`hw_lib.py` unmodified).
 
-## 3. 与旧 gap≤2 试点的差异
+## 3. Differences from the old gap≤2 pilot
 
-2022 年小区域（30–33°N、112–121°E，**476 有效格点**）三口径对比（
-`results_merge/hw_2022_region_summary.txt`）：
+2022 small region (30–33°N, 112–121°E, **476 valid grid cells**), three-definition comparison (
+`results_merge/hw_2022_region_summary.txt`):
 
-| 口径 | 事件/过程数 | 热浪日数 | 总跨度 | 间隔日数 | 最长 |
+| Definition | Events/processes | Heatwave days | Total span | Gap days | Longest |
 |---|---|---|---|---|---|
-| 严格（不合并） | 2,639 | 17,423 | — | — | 22 d |
-| **gap<2（新正式）** | **2,161** | 17,423 | 17,901 d | **478** | 26 d |
-| gap≤2（旧诊断） | 1,993 | 17,423 | 18,237 d | 814 | 26 d |
+| strict (no merge) | 2,639 | 17,423 | — | — | 22 d |
+| **gap<2 (new formal)** | **2,161** | 17,423 | 17,901 d | **478** | 26 d |
+| gap≤2 (old diagnostic) | 1,993 | 17,423 | 18,237 d | 814 | 26 d |
 
-> **口径说明**：上表的“事件/过程数、热浪日数、总跨度、间隔日数”均为
-> **格点—日合计**（对 476 个有效格点逐格点求和，单位“格点·日/格点·次”），
-> **不是**区域平均，**不是**面积加权，**也不代表**一个连续的区域级热浪事件；
-> “最长”为各格点过程跨度的最大值（26 d 出现在单个格点上）。
+> **Definition note**: the "events/processes, heatwave days, total span, gap days" in the table above are all
+> **grid-cell-day totals** (summed grid cell by grid cell over the 476 valid grid cells, in units of
+> "grid-cell-days / grid-cell-events"),
+> **not** regional averages, **not** area-weighted, and **do not represent** a continuous region-level heatwave event;
+> "longest" is the maximum process span over grid cells (26 d occurs at a single grid cell).
 
-- **交叉核对通过**：本脚本的 gap≤2 诊断结果（1,993 / 18,237 / 814 / 26）与旧
-  `eval_merge.py` 报告**逐项一致**，证明新实现与旧诊断同源、差异仅来自合并规则
-  收紧。
-- **gap≤2 → gap<2 的变化**：过程数 1,993 → 2,161（**+168**，合并变少）；间隔日
-  814 → 478（**−336**）；总跨度 18,237 → 17,901（**−336**）；最长过程 26 d **不变**
-  （最长过程本身是 1 天间隔，两种规则都合并）。
-- **热浪日数不变**（17,423）：合并只重新分组，不改变“哪些天是热浪日”。
-- 发生合并的格点：**292 / 476**（gap<2 下）。
+- **Cross-check passed**: this script's gap≤2 diagnostic results (1,993 / 18,237 / 814 / 26) are **item-by-item
+  identical** to the old `eval_merge.py` report, proving the new implementation is from the same source as the old
+  diagnostic and the difference comes only from tightening
+  the merge rule.
+- **gap≤2 → gap<2 change**: processes 1,993 → 2,161 (**+168**, fewer merges); gap days
+  814 → 478 (**−336**); total span 18,237 → 17,901 (**−336**); longest process 26 d **unchanged**
+  (the longest process itself is a 1-day gap, which both rules merge).
+- **Heatwave days unchanged** (17,423): merging only regroups and does not change "which days are heatwave days".
+- Grid cells with a merge: **292 / 476** (under gap<2).
 
-## 4. 代表格点图（单格点事件，非区域独立事件）
+## 4. Representative grid-cell figure (single grid-cell events, not regional independent events)
 
-代表格点 **114.50°E、31.75°N**（沿用旧报告同一格点，便于对比）。**本节所有数字
-均为该单个格点的计数（格点·日/格点·次），不是 §3 的区域格点—日合计。**
+Representative grid cell **114.50°E, 31.75°N** (the same grid cell as in the old report, for comparability). **All
+numbers in this section are counts for this single grid cell (grid-cell-days / grid-cell-events), not the §3 regional
+grid-cell-day totals.**
 
-- 严格口径：10 个热段 / 52 热日 / 最长 16 d（与旧报告一致）。
-- **gap<2 合并后：8 次事件、2 个间隔日**，其中两个合并过程：
-  - `08-02 ~ 08-22`：2 段合并、热日 20、间隔 1、跨度 21 d（与旧报告“跨度 21d
-    高温 20d 间隔 1d”一致）；
-  - `09-05 ~ 09-12`：2 段合并、热日 7、间隔 1、跨度 8 d。
-- 旧 gap≤2 下该格点为 7 次事件（多合并了 1 次经 2 天间隔的过程）；gap<2 下为 8
-  次——**正是规则收紧的直接体现**。
+- Strict definition: 10 heat segments / 52 heatwave days / longest 16 d (consistent with the old report).
+- **After gap<2 merge: 8 events, 2 gap days**, with two merged processes:
+  - `08-02 ~ 08-22`: 2 segments merged, heatwave days 20, gap 1, span 21 d (consistent with the old report's
+    "span 21d heatwave days 20d gap 1d");
+  - `09-05 ~ 09-12`: 2 segments merged, heatwave days 7, gap 1, span 8 d.
+- Under the old gap≤2 this grid cell had 7 events (one more merge of a process through a 2-day gap); under gap<2 it has 8
+  — **the direct manifestation of the tightened rule**.
 
-图 `results_merge/fig_hw_2022_merge_cell.png`（由 `scripts/hw_merge_plot.py`
-从已保存的逐日标签与事件 CSV 重绘，**不改数据/事件定义**）：
-- 总标题两行：第一行“CN05.1 Tmax vs calendar-day P90 — 2022”，第二行经纬度；
-- 温度图**上方**独立、共享日期轴的事件标记窄条，标出两次合并过程的起止线与日期；
-- 温度纵轴按 Tmax/P90 范围留白，不再为过程标记拉高；
-- 图例置于曲线区外（右侧）；“grid-cell event, not a regional event”移至图注；
-- 连续热浪段（粉底）、1 天间隔日（黄色斜纹底）与 5–9 月日期范围保持不变。
+Figure `results_merge/fig_hw_2022_merge_cell.png` (replotted by `scripts/hw_merge_plot.py`
+from the saved per-day labels and event CSV, **does not change data/event definition**):
+- two-line total title: first line "CN05.1 Tmax vs calendar-day P90 — 2022", second line the longitude/latitude;
+- an event-marker narrow strip **above** the temperature panel, independent and sharing the date axis, marking the
+  start/end lines and dates of the two merged processes;
+- the temperature y-axis leaves padding per the Tmax/P90 range, no longer stretched for process markers;
+- legend placed outside the curve area (right side); "grid-cell event, not a regional event" moved to the figure caption;
+- consecutive heat segments (pink background), 1-day gap days (yellow hatched background), and the May–September date
+  range unchanged.
 
-**图件渲染质量待人工目检**（本环境无法内嵌显示 PNG）。
+**Figure rendering quality awaits manual visual inspection** (this environment cannot display PNGs inline).
 
-## 5. 输出文件（独立目录 `results_merge/`）
+## 5. Output files (separate directory `results_merge/`)
 
-| 文件 | 内容 |
+| File | Content |
 |---|---|
-| `hw_2022_daily_labels.nc` | 2022 逐日分类代码（0–4）+ tmax + 阈值（date×lat×lon） |
-| `hw_2022_events_merged.csv` | 每格点合并事件目录（2,161 条）：lon/lat/start/end/n_segments/heatwave_days/gap_days/span_days/mean_excess_C |
-| `hw_2022_region_summary.txt` | 区域三口径汇总 |
-| `fig_hw_2022_merge_cell.png` | 代表格点时间序列 |
+| `hw_2022_daily_labels.nc` | 2022 per-day classification codes (0–4) + tmax + threshold (date×lat×lon) |
+| `hw_2022_events_merged.csv` | per-grid-cell merged event catalog (2,161 records): lon/lat/start/end/n_segments/heatwave_days/gap_days/span_days/mean_excess_C |
+| `hw_2022_region_summary.txt` | regional three-definition summary |
+| `fig_hw_2022_merge_cell.png` | representative grid-cell time series |
 
-标签统计核对：代码 3（热浪日）= 17,423、代码 4（间隔日）= 478，与汇总一致。
+Label statistics check: code 3 (heatwave day) = 17,423, code 4 (gap day) = 478, consistent with the summary.
 
-## 6. 下一步：ERA5 数据计划（暂不下载）
+## 6. Next step: ERA5 data plan (not downloaded yet)
 
-- **可复用性**：本项目与旧项目均**无小时** ERA5；旧项目仅有**月**尺度 ERA5/CMIP6
-  与风光公式、中国边界 shapefile（详见 `docs/era5_data_plan.md`）。
-- **数据需求**：小时 `t2m`、`u100/v100`、`ssrd`，并纳入 `u10/v10`（PV 组件温
-  冷却项 `wind10` 需要）。
-- **关键处理（已按 CDS 官方口径核对）**：ERA5 再分析逐小时 `ssrd` 为**时末 1 小时
-  累计**，直接 `÷3600` 转 W m⁻²，**无需差分**（ERA5-Land 才需差分）；风光潜力
-  **先小时后日**；组合用统一容量因子/装机假设，**不直接相加** WPD 与 PVpot。
-- **已产出的准备件**：
-  - 下载脚本 `scripts/era5_download_2022.py`（默认**干跑**，仅打印请求与
-    ~9 MB 的预期大小；`--download` 才真正请求；**不读取/不打印凭据**）；
-  - 潜力计算口径 `docs/potential_calc_scheme.md`（WPD vs 风 CF vs PVpot vs PV
-    CF 的区分与待定假设清单）。
-- **待解决**：CN05.1 观测日定义（00–24 时 vs 20–20 时北京时）须先确认，才能对齐
-  ERA5 日值。北京时间 = UTC+8：00–24 时北京时为 `[D−1 16:00 UTC, D 16:00 UTC)`、
-  20–20 时北京时为 `[D−1 12:00 UTC, D 12:00 UTC)`，二者都只**前伸**一个 UTC 日、
-  最迟 `D 16:00 UTC` 结束，故**只需前留 1 天（2022-07-31）**；脚本请求窗口
-  2022-07-31 ~ 2022-09-01 中的 09-01 仅为**对称余量**，非 8 月逐日聚合所必需。
-  此外区分瞬时变量（`t2m`/风按时间戳）与小时累计 `ssrd`（按累计区间**结束时间**
-  归属，`÷3600` 转 GHI），不得混用同一套时间筛选。
-- **本轮未下载** ERA5、**未运行**能源计算，等待人工核对方案后再下载。
+- **Reusability**: this project and the old project both have **no hourly** ERA5; the old project only has **monthly**-scale ERA5/CMIP6
+  with wind/solar formulas and a China boundary shapefile (see `docs/era5_data_plan.md` for details).
+- **Data needs**: hourly `t2m`, `u100/v100`, `ssrd`, and also `u10/v10` (needed for the PV module temperature
+  cooling term `wind10`).
+- **Key processing (verified against the official CDS definition)**: ERA5 reanalysis hourly `ssrd` is an **hour-ending 1-hour
+  accumulation**, directly `÷3600` to W m⁻², **no differencing needed** (only ERA5-Land needs differencing); wind/solar potential
+  is **hourly first, then daily**; the combination uses unified capacity-factor/installed-capacity assumptions and does
+  **not directly add** WPD and PVpot.
+- **Prepared artifacts already produced**:
+  - download script `scripts/era5_download_2022.py` (default **dry run**, only prints the request and
+    ~9 MB expected size; `--download` actually requests; **does not read/print credentials**);
+  - potential calculation scheme `docs/potential_calc_scheme.md` (the WPD vs wind CF vs PVpot vs PV
+    CF distinction and the list of pending assumptions).
+- **To resolve**: the CN05.1 observational day definition (00–24 h vs 20–20 h Beijing time) must be confirmed before
+  ERA5 daily values can be aligned. Beijing time = UTC+8: 00–24 h Beijing time is `[D−1 16:00 UTC, D 16:00 UTC)`,
+  20–20 h Beijing time is `[D−1 12:00 UTC, D 12:00 UTC)`, both extend **backward by only one UTC day** and
+  end no later than `D 16:00 UTC`, so **only 1 day of pre-buffer is needed (2022-07-31)**; the 09-01 in the script's request window
+  2022-07-31 ~ 2022-09-01 is only a **symmetric margin**, not required for August per-day aggregation.
+  Also distinguish instantaneous variables (`t2m`/wind by timestamp) from hourly-accumulated `ssrd` (assigned by the
+  accumulation interval's **ending time**,
+  `÷3600` to GHI); the same time filtering must not be mixed for the two.
+- **This round downloaded no** ERA5 and **ran no** energy computation; download awaits manual verification of the scheme.
 
-完整数据计划见 `docs/era5_data_plan.md`；计算方法见 `docs/potential_calc_scheme.md`。
+The full data plan is in `docs/era5_data_plan.md`; the computation method is in `docs/potential_calc_scheme.md`.

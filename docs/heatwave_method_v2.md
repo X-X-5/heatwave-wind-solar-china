@@ -1,134 +1,143 @@
-# 热浪识别方法说明（v2：合并事件定义）
+# Heatwave identification method description (v2: merged event definition)
 
-本文档为**当前正式方法说明**，取代 `docs/heatwave_method.md`（v1 严格定义）。
-v1 的阈值、季节窗口、缺测质量控制全部**保持不变**；本轮唯一变化是**事件分组规则**
-由“严格连续 ≥3 天”改为“先识别 ≥3 天合格热段、再把间隔 < 2 天的相邻合格热段合并为
-一次事件”。阈值文件 `results_fixed/hw_threshold_1981-2010.nc` 不变，仍被复用。
+This document is the **current formal method description**, replacing `docs/heatwave_method.md` (the v1 strict definition). The v1 threshold, season window, and missing-data quality control are **all unchanged**; the only change in this round is the **event grouping rule**, changed from "strict consecutive ≥3 days" to "first identify ≥3-day qualified heat segments, then merge adjacent qualified heat segments separated by a gap < 2 days into one event". The threshold file `results_fixed/hw_threshold_1981-2010.nc` is unchanged and is still reused.
 
 ---
 
-## 1. 数据（同 v1，未变）
+## 1. Data (same as v1, unchanged)
 
-- 数据源：`data/CN05.1_Tmax_1961-2022_daily_025x025.nc`（CN05.1，Wu & Gao, 2013；
-  逐日最高气温 Tmax，0.25°×0.25°，1961-01-01 至 2022-12-31，单位 ℃）。
-- 缺测：`_FillValue = -9999.0`；无 `scale_factor`/`add_offset`。
-- 网格：lon 69.75–140.25°E、lat 14.75–55.25°N，分辨率 0.25°。
+- Data source: `data/CN05.1_Tmax_1961-2022_daily_025x025.nc` (CN05.1, Wu & Gao, 2013;
+  daily maximum temperature Tmax, 0.25°×0.25°, 1961-01-01 to 2022-12-31, unit ℃).
+- Missing: `_FillValue = -9999.0`; no `scale_factor`/`add_offset`.
+- Grid: lon 69.75–140.25°E, lat 14.75–55.25°N, resolution 0.25°.
 
-## 2. 阈值（同 v1，未变）
+## 2. Threshold (same as v1, unchanged)
 
-- **基准期**：固定 1981–2010（30 年）。
-- **阈值**：每格点、每日历日（(月,日)，366 天闰年坐标系，闰日 = 2 月 29 日）的
-  Tmax **第 90 百分位**。
-  - 阈值样本：以该日历日为中心的 **5 日滑动窗口**（当日 ±2 日），跨年按 366 天
-    正确回绕，合并所有基准年落入该窗口的日值。
-  - 百分位算法：`numpy` 线性插值（Hyndman–Fan Type 7）。
-  - **最小样本量**：合并样本有效值 ≥ **100** 才定义阈值，否则阈值为 NaN。
-- **热日**：Tmax **严格大于**（`>`）当日阈值，且 Tmax 与阈值同时有效（“可判定”）。
+- **Baseline period**: fixed 1981–2010 (30 years).
+- **Threshold**: the Tmax **90th percentile** for each grid cell and each calendar day ((month, day),
+  366-day leap-year coordinate system, leap day = February 29).
+  - Threshold sample: a **5-day sliding window** centered on that calendar day (the day ±2 days), wrapped correctly
+    across years on the 366-day cycle, pooling all baseline-year daily values that fall in the window.
+  - Percentile algorithm: `numpy` linear interpolation (Hyndman–Fan Type 7).
+  - **Minimum sample size**: a threshold is defined only if the pooled sample has ≥ **100** valid values; otherwise
+    the threshold is NaN.
+- **Hot day**: Tmax **strictly greater than** (`>`) the day's threshold, with both Tmax and threshold valid
+  ("decidable").
 
-## 3. 事件定义（v2 正式定义）
+## 3. Event definition (v2 formal definition)
 
-### 3.1 合格热浪段
+### 3.1 Qualified heat segment
 
-- **合格热浪段** = 一段**连续 ≥ 3 天**热日的最长连续段。
-- 不足 3 天的孤立热日**不是**热浪日，也**不被吸收**进任何事件（见 §4 分类）。
+- **Qualified heat segment** = the longest consecutive run of **consecutive ≥ 3 days** of hot days.
+- An isolated hot day shorter than 3 days is **not** a heatwave day and is **not absorbed** into any event
+  (see §4 classification).
 
-### 3.2 合并规则（本次变更的核心）
+### 3.2 Merge rule (the core of this change)
 
-- 相邻的两个合格热浪段，当二者之间的**间隔**满足以下**全部**条件时，**合并为一次
-  事件**：
-  1. **间隔 < 2 天**（按“完整间隔日数”解释）：即**只允许 1 天间隔**；**2 天间隔不
-     合并**。（**明确：是 `gap < 2`，不是 `gap ≤ 2`。**）
-  2. 间隔日**必须有有效 Tmax 且有效阈值**（“可判定”），并且**非超阈值日**（即
-     `Tmax ≤ 阈值` 的“凉日”）。
-- **缺测/不可判定日绝不合并**：只要间隔中出现缺测或阈值无效，两侧热段保持分离
-  （**不跨缺测合并**）。
-- **孤立超阈值日阻断合并**：若间隔中夹有未达到连续 3 天的孤立热日，该热日既不是
-  间隔日、也不是热浪日（分类为“孤立超阈值日”，代码 2），且使该间隔不可合并。
-- **链式合并**：多个合格热段通过连续的 1 天凉间隔可**传递性地链成一次事件**
-  （例如 热3—凉1—热3—凉1—热3 合并为一次事件）。该约定已记录，作为正式规则。
+- Two adjacent qualified heat segments are **merged into one
+  event** when the **gap** between them satisfies **all** of the following:
+  1. **Gap < 2 days** (interpreted as the "complete gap-day count"): i.e. **only a 1-day gap is allowed**; a
+     **2-day gap is not merged**. (**Explicit: it is `gap < 2`, not `gap ≤ 2`.**)
+  2. The gap day **must have valid Tmax and a valid threshold** ("decidable"), and must be a **non-exceedance day**
+     (i.e. a "cool day" with `Tmax ≤ threshold`).
+- **Missing/undecidable days never merge**: if the gap contains missing data or an invalid threshold, the two heat
+  segments stay separate (**no merge across missing data**).
+- **An isolated exceedance day blocks merging**: if the gap contains an isolated hot day that does not reach 3
+  consecutive days, that hot day is neither a gap day nor a heatwave day (classified as "isolated exceedance day",
+  code 2), and makes that gap non-mergeable.
+- **Chained merge**: multiple qualified heat segments can be **transitively chained into one event** through
+  consecutive 1-day cool gaps (e.g. hot3—cool1—hot3—cool1—hot3 merged into one event). This convention is recorded
+  as a formal rule.
 
-### 3.3 季节与边界（同 v1，未变）
+### 3.3 Season and boundary (same as v1, unchanged)
 
-- 分析季节 **5–9 月**（含边界）。事件仅在季节窗口内识别；**边界截断**，不与
-  4 月/10 月跨边界连接。
-- 实现方式：每年只取 5–9 月共 153 天构成序列，在此序列内做段识别与合并。
+- Analysis season **May–September** (inclusive of boundaries). Events are identified only within the season window;
+  **boundary truncation**, no cross-boundary linkage with April/October.
+- Implementation: each year only the 153 days of May–September are taken to form the sequence; segment identification
+  and merging are done within this sequence.
 
-## 4. 逐日分类标签（v2 新增）
+## 4. Per-day classification labels (new in v2)
 
-每个格点、每个季节日输出一个分类代码（缺测/不可判定**绝不**编码为普通非热浪日）：
+Each grid cell, each season day outputs one classification code (missing/undecidable is **never** encoded as an
+ordinary non-heatwave day):
 
-| 代码 | 名称 | 含义 |
+| Code | Name | Meaning |
 |---|---|---|
-| 0 | 缺测/不可判定 | Tmax 或阈值无效，无法判定（**不是**普通日） |
-| 1 | 凉日 | 有效、`Tmax ≤ 阈值`、非合并间隔日 |
-| 2 | 孤立超阈值日 | 有效、`Tmax > 阈值`、但**不属于**任何 ≥3 天连续段 |
-| 3 | 热浪日 | 有效、`Tmax > 阈值`、属于某个 ≥3 天合格热浪段 |
-| 4 | 间隔日 | 有效、`Tmax ≤ 阈值`、位于合并事件内的 1 天凉间隔 |
+| 0 | missing/undecidable | Tmax or threshold invalid, cannot determine (**not** an ordinary day) |
+| 1 | cool day | valid, `Tmax ≤ threshold`, non-merge gap day |
+| 2 | isolated exceedance day | valid, `Tmax > threshold`, but **not belonging** to any ≥3-day consecutive run |
+| 3 | heatwave day | valid, `Tmax > threshold`, belonging to some ≥3-day qualified heat segment |
+| 4 | gap day | valid, `Tmax ≤ threshold`, a 1-day cool gap inside a merged event |
 
-“超阈值日” = 代码 2 或 3；“热浪日” = 仅代码 3；“间隔日” = 仅代码 4。
+"Exceedance day" = code 2 or 3; "heatwave day" = only code 3; "gap day" = only code 4.
 
-## 5. 事件目录字段
+## 5. Event catalog fields
 
-每个格点的每次（合并后）事件记录：
+For each grid cell, each (merged) event records:
 
-| 字段 | 含义 |
+| Field | Meaning |
 |---|---|
-| `lon`, `lat` | 格点经纬度 |
-| `start`, `end` | 事件**首个热日**到**末个热日**的日期（含间隔日） |
-| `n_segments` | 合并进该事件的合格热浪段个数 |
-| `heatwave_days` | 热浪日数（仅合格热段中的热日） |
-| `gap_days` | 间隔日数（事件内的 1 天凉间隔） |
-| `span_days` | 过程跨度 = `end − start + 1`（含间隔日） |
-| `mean_excess_C` | 平均超阈值强度 = 仅对**热浪日**求 `(Tmax − 阈值)` 的平均（**不含**间隔日、**不含**孤立超阈值日） |
+| `lon`, `lat` | grid cell longitude/latitude |
+| `start`, `end` | dates from the event's **first hot day** to its **last hot day** (including gap days) |
+| `n_segments` | number of qualified heat segments merged into this event |
+| `heatwave_days` | number of heatwave days (only hot days in qualified heat segments) |
+| `gap_days` | number of gap days (the 1-day cool gaps inside the event) |
+| `span_days` | process span = `end − start + 1` (including gap days) |
+| `mean_excess_C` | mean exceedance intensity = mean of `(Tmax − threshold)` over **heatwave days only** (**excluding** gap days and **excluding** isolated exceedance days) |
 
-## 6. 缺测与质量控制（同 v1，未变）
+## 6. Missing data and quality control (same as v1, unchanged)
 
-- 缺测**不填补**、**不插值**。
-- 缺测日**不计为凉日**、也**不计为热日**；在段识别中**中断连续序列**；在合并中
-  **绝不作为可合并间隔**。
-- 缺测值被排除在阈值样本与强度平均之外。
-- **年度有效性门**：某格点-年可判定日数 = 0 时，该年指标输出缺测，绝不输出 0。
+- Missing data is **not filled** and **not interpolated**.
+- Missing days are **not counted as cool days** and **not counted as hot days**; in segment identification they
+  **break the consecutive run**; in merging they are **never usable merge gaps**.
+- Missing values are excluded from the threshold sample and from intensity averaging.
+- **Annual validity gate**: when a grid cell-year's decidable-day count = 0, that year's indicators are output as
+  missing, never as 0.
 
-## 7. 观测日定义：核实结论（2026-10；CN05.1 本身仍未最终确认）
+## 7. Observational day definition: verification conclusion (2026-10; CN05.1 itself still not finally confirmed)
 
-**本地数据**：`data/CN05.1_Tmax_*.nc` 仅含 `tmax`（`long_name`="CN05.1 daily,
-maximum temperature"）与 `time`（逐日 00:00，`hours since 1961-01-01`，标准历），
-**无任何时区/观测窗口属性**；由 GrADS `.ctl` 二进制经 CDO 转出，本地无随数据附带的
-说明文档。因此**本地数据本身不含日界信息**。
+**Local data**: `data/CN05.1_Tmax_*.nc` contains only `tmax` (`long_name`="CN05.1 daily,
+maximum temperature") and `time` (daily 00:00, `hours since 1961-01-01`, standard calendar),
+**no timezone/observation-window attributes**; it was converted from GrADS `.ctl` binary via CDO, and no
+documentation accompanies the local data. Therefore **the local data itself contains no day-boundary information**.
 
-**来源链核实（二手检索，非直读原文）**：
-- CN05.1 由 2400 余个国家级台站**逐日观测**插值而来（Wu & Gao 2013，《地球物理学报》
-  56(4):1102–1111，DOI 10.6038/cjg20130406；官方 NZC 数据页）。
-- 其底层台站数据《中国地面气候资料日值数据集（V3.0，SURF_CLI_CHN_MUL_DAY）》与气象
-  行业标准 **QX/T 22—2004** 明确：**日界与时制 = 北京时，日界为 20 时**（除日照用真
-  太阳时外），即日值统计窗口 = **前一日 20:00 至当日 20:00（北京时）**，日值**归属
-  结束日**（日期字段 D = 该 24 h 窗口的结束日）。
-- **但**：CN05.1 自身官方 README / 论文“资料与方法”**未明确写出**这一日界，本环境
-  无法直读原文核对。故只能判为“**很可能继承台站的 20 时日界**”，**不能确证**；不能
-  排除 CN05.1 另行采用日历日 00–24 时（北京时）。
+**Source-chain verification (secondhand retrieval, not direct reading of the original)**:
+- CN05.1 is interpolated from **daily observations** of 2400+ national stations (Wu & Gao 2013,
+  *Chinese Journal of Geophysics* (in Chinese) 56(4):1102–1111, DOI 10.6038/cjg20130406; official NZC data page).
+- Its underlying station data, the China surface climate daily-value dataset V3.0
+  (`SURF_CLI_CHN_MUL_DAY`; title in Chinese), together with the meteorological industry standard
+  **QX/T 22—2004**, state clearly: **day boundary and time system = Beijing time, with the day boundary at 20:00**
+  (except sunshine, which uses true solar time); i.e. the daily-value statistics window =
+  **previous day 20:00 to the current day 20:00 (Beijing time)**, with the daily value **assigned
+  to the ending day** (date field D = the ending day of that 24 h window).
+- **However**: CN05.1's own official README / the paper's "Data and methods" **do not explicitly state**
+  this day boundary, and this environment cannot read the original text directly to verify. It can therefore only be
+  judged as "**very likely inherits the stations' 20:00 day boundary**", **not confirmable**; it cannot
+  be ruled out that CN05.1 separately uses calendar day 00–24 h (Beijing time).
 
-**待向数据方确认（一句话）**：
-> CN05.1 逐日 Tmax 标注为日期 D 的值，日界是“北京时间 20 时（前一日 20:00—当日
-> 20:00，值归属结束日 D）”，还是“日历日 00:00—24:00（北京时间）”？
+**To confirm with the data provider (one sentence)**:
+> For the CN05.1 daily Tmax value labeled with date D, is the day boundary "Beijing time 20:00 (previous day
+> 20:00—current day 20:00, value assigned to the ending day D)", or "calendar day 00:00—24:00 (Beijing time)"?
 
-**未确认前**：不得声称 ERA5 日值与 CN05.1 已对齐，也**不得**用“哪种对齐相关性更高”
-反推日界定义。
+**Before confirmation**: do not claim that ERA5 daily values are already aligned with CN05.1, and do **not**
+reverse-infer the day-boundary definition from "which alignment gives a higher correlation".
 
-## 8. 当前阶段范围
+## 8. Current phase scope
 
-- 当前阶段**只做热浪识别**（阈值 + 事件分组 + 逐日分类），**未得出任何风光/能源
-  结论**。风光潜力为后续阶段，需要 ERA5 小时数据（尚未下载，见数据计划）。
-- 阈值/强度单位 ℃；强度为相对阈值的高出量，非绝对温度。
-- 仅使用 Tmax：**不能**声称识别暖夜、湿热（湿球）等事件。
+- The current phase does **only heatwave identification** (threshold + event grouping + per-day classification), and
+  has **not produced any wind/solar or energy conclusions**. Wind/solar potential is a later phase requiring hourly
+  ERA5 data (not yet downloaded; see the data plan).
+- Threshold/intensity units are ℃; intensity is the exceedance over the threshold, not an absolute temperature.
+- Only Tmax is used: we **cannot** claim to identify warm-night or humid-heat (wet-bulb) events.
 
-## 9. 文件对应
+## 9. File correspondence
 
-- 算法核心：`scripts/hw_merge_lib.py`（合并定义，复用 `hw_lib.py` 的槽位/季节）
-- 合成单元测试：`scripts/hw_merge_test.py`（19 项断言）
-- 小区域试点：`scripts/hw_merge_pilot.py`
-- 制图（读已保存输出重绘，不改数据）：`scripts/hw_merge_plot.py`
-- 输出（独立目录，保留 `results_fixed/` 作核对）：
-  - `results_merge/hw_2022_daily_labels.nc`（2022 逐日分类 + tmax/threshold）
-  - `results_merge/hw_2022_events_merged.csv`（每格点合并事件目录）
-  - `results_merge/hw_2022_region_summary.txt`（区域汇总，严格/gap<2/gap≤2 三口径）
-  - `results_merge/fig_hw_2022_merge_cell.png`（代表格点时间序列）
+- Algorithm core: `scripts/hw_merge_lib.py` (merged definition, reuses the slots/season of `hw_lib.py`)
+- Synthetic unit tests: `scripts/hw_merge_test.py` (19 assertions)
+- Small-region pilot: `scripts/hw_merge_pilot.py`
+- Plotting (reads saved output and replots, does not change data): `scripts/hw_merge_plot.py`
+- Output (separate directory, keeping `results_fixed/` for verification):
+  - `results_merge/hw_2022_daily_labels.nc` (2022 per-day classification + tmax/threshold)
+  - `results_merge/hw_2022_events_merged.csv` (per-grid-cell merged event catalog)
+  - `results_merge/hw_2022_region_summary.txt` (regional summary, strict/gap<2/gap≤2 three definitions)
+  - `results_merge/fig_hw_2022_merge_cell.png` (representative grid-cell time series)

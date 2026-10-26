@@ -1,166 +1,186 @@
-# 第一阶段修复报告 + 段合并评估
+# Phase-1 fix report + segment-merge evaluation
 
-> **【历史文档，已被取代】** 本文档为第一阶段历史报告；其第二部分“备选口径 B
-> （合并 ≤2 凉日间隔，即 gap ≤ 2）”仅为**诊断性评估**，**不是**当前正式方法。
-> 当前正式事件定义见 [`docs/heatwave_method_v2.md`](heatwave_method_v2.md)：
-> 先识别连续 ≥3 天合格热浪段，再合并间隔 `< 2` 天（即最多 1 个完整间隔日）的
-> 相邻事件。第一部分修复结论已在当前代码中落实。
+> **Historical document, superseded.** This document is a phase-1 historical report; its Part 2, "alternative definition B
+> (merging ≤2 cool gap days, i.e. gap ≤ 2)", is **diagnostic evaluation only** and **not** the current formal method.
+> The current formal event definition is in [`docs/heatwave_method_v2.md`](heatwave_method_v2.md):
+> first identify consecutive ≥3-day qualified heat segments, then merge adjacent events separated by a gap `< 2` days
+> (i.e. at most 1 complete gap day). The Part-1 fix conclusions are already implemented in the current code.
 
-本报告承接 `docs/phase1_verification_report.md` 的核对结论，分两部分：
-**第一部分** 落实已确认问题的修复；**第二部分** 只读评估“热浪段合并”这一备选
-口径（**不改变**正式定义）。本轮未下载 ERA5、未做能源计算、未做 git 操作、
-未修改原始 NetCDF、未覆盖 `results/` 下的原始成果（修复结果写入独立目录
-`results_fixed/`）。
-
----
-
-## 第一部分：修复结果
-
-### 修复 1 —— 年度有效性门（可判定日数 = 0 → 缺测）
-
-在 `scripts/hw_lib.py` 新增 `detect_cell_full`（含门控），`scripts/hw_full.py`
-改用该函数：某格点-年的**可判定日数 = 0**（5–9 月 Tmax 与阈值同时有效的天数为
-0）时，`hw_count / hw_days / hw_max_dur` 输出 **−9999**、`hw_intensity` 输出
-**NaN**，不再输出 0。门控在库函数内实现，因此**重新运行即复现修复后的结果**。
-
-一致性核对（`scripts/verify_fix.py`，只读比对 `results/` 与 `results_fixed/`）：
-
-| 指标 | 变更的格点-年数 | 是否全部落在“不可判定”格点-年 | 原值 |
-|---|---|---|---|
-| hw_count | 2,790 | 是（0 个越界） | 0 → −9999 |
-| hw_days | 2,790 | 是 | 0 → −9999 |
-| hw_max_dur | 2,790 | 是 | 0 → −9999 |
-| hw_intensity | 0 | —（本就为 NaN） | 不变 |
-
-**结论**：修复**恰好**只作用于先前误报为 0 的 2,790 个不可判定格点-年；其余
-944,971 个完整 + 343 个不完整格点-年的四指标与原结果**逐位一致**。
-
-### 修复 2 —— 保存诊断变量、标记“数据不完整”
-
-`results_fixed/hw_annual_1961-2022.nc` 新增三个随年变量：
-
-| 变量 | 说明 | 取值 |
-|---|---|---|
-| `decidable_days` | 该年 5–9 月 Tmax 与阈值同时有效天数 | 0–153 |
-| `max_missing_run` | 该年 5–9 月最长连续缺测 Tmax 天数 | 0–153 |
-| `data_status` | 0=海洋/无数据，1=完整，2=不完整，3=不可判定 | 0–3 |
-
-全量统计：完整 944,971；不完整 **343**（均为“缺 1 天”，即 `decidable_days=152`，
-对应 2016–2018 年零星缺测）；不可判定 2,790（台湾海峡 45 格点 × 62 年）。这 343
-个“缺 1 天”格点-年**标记为不完整**（`data_status=2`），**不补值、不跨缺测连接**
-（缺测日仍中断连续序列，事件不跨缺测合并）。
-
-### 修复 3 —— 修复后成果写入独立目录
-
-`results_fixed/`（与 `results/` 并存，原始结果未动）：
-`hw_annual_1961-2022.nc`（含新变量）、`hw_threshold_1981-2010.nc`（阈值未变，
-重新写出以便自洽）、`valid_mask.nc`、`hw_2022_events.csv`、
-`fig_hw_climatology.png`、`fig_hw_2022.png`。
-
-### 修复 4 —— 2022 图色标
-
-2022 图不再沿用气候态色标上限，改为按**实际最大值向上取整覆盖**（无截断，无需
-`extend`）。`hw_plot.py` 打印的实测值：
-
-| 指标 | 2022 实际最大 | 新色标上限（旧值） | 饱和比例（旧→新） |
-|---|---|---|---|
-| hw_count | 12 | **14**（4） | 18.6% → 0% |
-| hw_days | 64 | **70**（20） | 23.5% → 0% |
-| hw_max_dur | 26 | **30**（10） | 10.7% → 0% |
-| hw_intensity | 4.36 ℃ | **4.5**（3） | 1.2% → 0% |
-
-气候态图仍用原上限（本就 0% 饱和）。注意：修复后气候态图有 45 个台湾海峡格点由
-“0 热浪日”改为“无数据（灰）”，这是正确表现。图件渲染质量**待人工目检**
-（本环境无法内嵌显示 PNG）。
-
-### 修复 5 —— 汇总数字与口径
-
-四个数字均为**有效格点的未加权算术平均**（每个 0.25°×0.25° 格点等权），
-**不是面积加权**、**不是全国/区域面积加权**，未用任何边界或面积权重。修复前后：
-
-| 数值 | 修复前 | 修复后 | 变化原因 |
-|---|---|---|---|
-| 气候态热浪日数 | 8.3433 | **8.3679** | 45 个不可判定格点由“记 0”改为“丢弃” |
-| 2022 热浪日数 | 27.6173 | **27.6988** | 同上 |
-| 2022/气候态倍数 | 3.310 | **3.310**（不变） | 分子分母同源变化 |
-| 平均超阈值强度 | 1.4890 ℃ | **1.4890 ℃**（不变） | 强度本就丢弃无热浪年/无数据格点 |
-
-四舍五入后：**8.3→8.4 天、27.6→27.7 天、3.3 倍不变、1.5 ℃ 不变**。
-
-强度口径（已写入方法文档）：先对每个格点按**有热浪日的年份**求平均（`nanmean`
-丢弃无热浪年、不计为 0），再对格点取算术平均；故强度分母（15,247 个有热浪年格点）
-小于日数分母。全部结论不做统计检验，**已删除“显著”一词**，改用“明显偏多”。
-
-### 修复 6 —— 全量驻留内存说明（仅改说明，不重跑优化）
-
-`hw_full.py` 中“contiguous -> view”的注释有误，已改正：`Xb = data[baseline_idx]`
-的 `baseline_idx` 来自 `np.where` 的 int64 索引**数组**，属**花式索引 → 产生
-2.02 GB 副本**（`np.shares_memory` 实测为 False）。真实内存布局：`data` 4.18 GB
-+ `Xb` 副本 2.02 GB + 阈值 0.135 GB + 逐槽位瞬态 ≈ 峰值 6.4 GB（未溢出，可用约
-12.9 GB）。**未做内存优化重跑**（本就有裕量，属低优先级，可后续用连续切片
-`data[7305:18262]` 消除副本）。
+This report continues the verification conclusions of `docs/phase1_verification_report.md` and has two parts:
+**Part 1** implements fixes for confirmed issues; **Part 2** is a read-only evaluation of the alternative
+"heat segment merge" definition (**does not change** the formal definition). This round downloaded no ERA5, performed
+no energy computation, performed no git operations, modified no original NetCDF, and did not overwrite the original
+results under `results/` (fix results were written to the separate directory
+`results_fixed/`).
 
 ---
 
-## 第二部分：热浪段合并评估（只读，不改变正式定义）
+## Part 1: Fix results
 
-- **正式定义 A**：热浪 = **连续 ≥ 3 天** Tmax 严格大于阈值。
-- **备选口径 B**（仅诊断）：先按 A 识别 ≥ 3 天热段，再把**相隔 ≤ 2 个完整非超阈值
-  日（“凉日”）**的相邻热段**合并**为同一“过程”。规则：
-  - **缺测日不可作为可合并间隔**（两侧热段保持分离）；
-  - 间隔凉日**不计入高温日数**；
-  - 过程跨度 = 首个热日到最后热日（含凉间隔日）；高温日数 = 仅超阈值日；
-    间隔日数 = 过程内的凉日；
-  - 合并**可链式传递**（连续多个 ≤2 天凉间隔合成一个长过程）。
+### Fix 1 — Annual validity gate (decidable-day count = 0 → missing)
 
-### 验证用例（`scripts/eval_merge.py`，全部通过）
+Added `detect_cell_full` (with gating) to `scripts/hw_lib.py`, and `scripts/hw_full.py`
+now uses that function: when a grid cell-year's **decidable-day count = 0** (the number of days within May–September
+when both Tmax and the threshold are valid is
+0), `hw_count / hw_days / hw_max_dur` output **−9999** and `hw_intensity` outputs
+**NaN**, no longer outputting 0. The gate is implemented inside the library function, so
+**rerunning reproduces the fixed results**.
 
-| 用例 | A（严格） | B（合并） |
+Consistency verification (`scripts/verify_fix.py`, read-only comparison of `results/` and `results_fixed/`):
+
+| Indicator | Changed grid cell-years | All fall in "undecidable" grid cell-years | Original value |
+|---|---|---|---|
+| hw_count | 2,790 | yes (0 out of range) | 0 → −9999 |
+| hw_days | 2,790 | yes | 0 → −9999 |
+| hw_max_dur | 2,790 | yes | 0 → −9999 |
+| hw_intensity | 0 | — (already NaN) | unchanged |
+
+**Conclusion**: the fix acts **exactly** and only on the 2,790 undecidable grid cell-years previously misreported as 0; the
+four indicators of the remaining
+944,971 complete + 343 incomplete grid cell-years are **bit-identical** to the original results.
+
+### Fix 2 — Save diagnostic variables, flag "data incomplete"
+
+`results_fixed/hw_annual_1961-2022.nc` adds three new per-year variables:
+
+| Variable | Description | Values |
 |---|---|---|
-| 热4—凉2—热3 | 2 次（4d、3d） | 1 过程，跨度 9d，高温 7d，间隔 2d |
-| 热2—凉2—热2 | 0（两段均不足 3 天） | 0 |
-| 热3—缺1—热3 | 2 次 | 2 过程（缺测不可合并） |
-| 热3—凉3—热3 | 2 次 | 2 过程（间隔 3 > 2） |
-| 热3—凉2—热3—凉2—热3 | 3 次 | 1 过程，跨度 13d，高温 9d，间隔 4d（链式） |
+| `decidable_days` | number of days in that year's May–September when both Tmax and threshold are valid | 0–153 |
+| `max_missing_run` | longest run of consecutive missing Tmax days in that year's May–September | 0–153 |
+| `data_status` | 0=sea/no data, 1=complete, 2=incomplete, 3=undecidable | 0–3 |
 
-### 小区域实测（30–33°N、112–121°E，481 格点 / 476 有效格点-年）
+Full statistics: complete 944,971; incomplete **343** (all "lacking 1 day", i.e. `decidable_days=152`,
+corresponding to sporadic missing data in 2016–2018); undecidable 2,790 (Taiwan Strait 45 grid cells × 62 years). These 343
+"lacking 1 day" grid cell-years are **flagged incomplete** (`data_status=2`), **not filled and not connected across missing data**
+(a missing day still breaks the consecutive run; events do not merge across missing data).
 
-| 年份 | 口径 | 事件/过程数 | 高温日数 | 总跨度 | 最长事件/过程 | 间隔日数 |
+### Fix 3 — Write fixed results to a separate directory
+
+`results_fixed/` (coexisting with `results/`, original results untouched):
+`hw_annual_1961-2022.nc` (with new variables), `hw_threshold_1981-2010.nc` (threshold unchanged,
+rewritten for self-consistency), `valid_mask.nc`, `hw_2022_events.csv`,
+`fig_hw_climatology.png`, `fig_hw_2022.png`.
+
+### Fix 4 — 2022 figure color scales
+
+The 2022 figures no longer reuse the climatology color-scale upper bound; they are now set to
+**round up to cover the actual maximum** (no truncation, no
+`extend` needed). The measured values printed by `hw_plot.py`:
+
+| Indicator | 2022 actual max | New color-scale upper bound (old value) | Saturation fraction (old→new) |
+|---|---|---|---|
+| hw_count | 12 | **14** (4) | 18.6% → 0% |
+| hw_days | 64 | **70** (20) | 23.5% → 0% |
+| hw_max_dur | 26 | **30** (10) | 10.7% → 0% |
+| hw_intensity | 4.36 ℃ | **4.5** (3) | 1.2% → 0% |
+
+The climatology figure still uses the original upper bound (already 0% saturation). Note: after the fix the climatology
+figure has 45 Taiwan Strait grid cells changed from
+"0 heatwave days" to "no data (gray)", which is the correct representation. Figure rendering quality **awaits manual
+visual inspection**
+(this environment cannot display PNGs inline).
+
+### Fix 5 — Summary numbers and aggregation convention
+
+The four numbers are all **unweighted arithmetic means over valid grid cells** (each 0.25°×0.25° grid cell weighted equally),
+**not area-weighted**, **not national/regional area-weighted**, using no boundary or area weights. Before/after the fix:
+
+| Value | Before fix | After fix | Reason for change |
+|---|---|---|---|
+| Climatology heatwave days | 8.3433 | **8.3679** | 45 undecidable grid cells changed from "counted as 0" to "discarded" |
+| 2022 heatwave days | 27.6173 | **27.6988** | same as above |
+| 2022/climatology ratio | 3.310 | **3.310** (unchanged) | numerator and denominator changed from the same source |
+| Mean exceedance intensity | 1.4890 ℃ | **1.4890 ℃** (unchanged) | intensity already discards no-heatwave years / no-data grid cells |
+
+After rounding: **8.3→8.4 days, 27.6→27.7 days, 3.3× unchanged, 1.5 ℃ unchanged**.
+
+Intensity convention (already written into the method document): first average over **years with heatwave days** within
+each grid cell (`nanmean`
+discards no-heatwave years, not counted as 0), then take the arithmetic mean over grid cells; so the intensity
+denominator (15,247 grid cells with heatwave years)
+is smaller than the days denominator. All conclusions involve no statistical testing, and the word "significant" has
+been **deleted** and replaced with "markedly above normal".
+
+### Fix 6 — Full-run in-memory note (note change only, no rerun optimization)
+
+The "contiguous -> view" comment in
+`hw_full.py` was wrong and has been corrected: the `baseline_idx` of `Xb = data[baseline_idx]`
+comes from an int64 index **array** from `np.where`, which is **fancy indexing → produces a
+2.02 GB copy** (`np.shares_memory` measured as False). The actual memory layout: `data` 4.18 GB
++ `Xb` copy 2.02 GB + threshold 0.135 GB + per-slot transients ≈ peak 6.4 GB (no overflow; about
+12.9 GB available). **No memory-optimization rerun was done** (there is already headroom; low priority; the copy can
+later be eliminated with the contiguous slice
+`data[7305:18262]`).
+
+---
+
+## Part 2: Heat segment merge evaluation (read-only, does not change the formal definition)
+
+- **Formal definition A**: heatwave = **consecutive ≥ 3 days** with Tmax strictly greater than the threshold.
+- **Alternative definition B** (diagnostic only): first identify ≥3-day heat segments as in A, then **merge** adjacent heat
+  segments separated by **≤ 2 complete non-exceedance
+  days ("cool days")** into one "process". Rules:
+  - **A missing day cannot be a mergeable gap** (the two heat segments stay separate);
+  - gap cool days are **not counted in the number of heatwave days**;
+  - process span = first hot day to last hot day (including cool gap days); number of heatwave days = exceedance days only;
+    number of gap days = cool days inside the process;
+  - merging **can be chained transitively** (consecutive multiple ≤2-day cool gaps compose one long process).
+
+### Verification cases (`scripts/eval_merge.py`, all pass)
+
+| Case | A (strict) | B (merged) |
+|---|---|---|
+| hot4—cool2—hot3 | 2 events (4d, 3d) | 1 process, span 9d, heatwave days 7d, gap 2d |
+| hot2—cool2—hot2 | 0 (both segments < 3 days) | 0 |
+| hot3—missing1—hot3 | 2 events | 2 processes (missing cannot merge) |
+| hot3—cool3—hot3 | 2 events | 2 processes (gap 3 > 2) |
+| hot3—cool2—hot3—cool2—hot3 | 3 events | 1 process, span 13d, heatwave days 9d, gap 4d (chained) |
+
+### Small-region measured test (30–33°N, 112–121°E, 481 grid cells / 476 valid grid cell-years)
+
+| Year | Definition | Events/processes | Number of heatwave days | Total span | Longest event/process | Gap days |
 |---|---|---|---|---|---|---|
-| 2000（普通） | A | 1,281 | 4,402 | — | 7 d | — |
-| 2000（普通） | B | 1,281 | 4,402 | 4,402 d | 7 d | 0 |
-| 2022（极端） | A | 2,639 | 17,423 | — | 22 d | — |
-| 2022（极端） | B | **1,993** | 17,423 | **18,237 d** | **26 d** | 814 |
+| 2000 (ordinary) | A | 1,281 | 4,402 | — | 7 d | — |
+| 2000 (ordinary) | B | 1,281 | 4,402 | 4,402 d | 7 d | 0 |
+| 2022 (extreme) | A | 2,639 | 17,423 | — | 22 d | — |
+| 2022 (extreme) | B | **1,993** | 17,423 | **18,237 d** | **26 d** | 814 |
 
-- **普通年（2000）**：该区域没有任何两个 ≥3 天热段相隔 ≤2 个凉日，故 **A 与 B 完全
-  相同**（合并不起作用）。
-- **极端年（2022）**：合并使过程数减少 646（2,639→1,993，约 −24%），最长过程由
-  22 d 拉长到 **26 d**，总跨度比高温日数多 814 个凉间隔日；**高温日数不变**
-  （合并只重新分组，不改变哪些天是热日）。
+- **Ordinary year (2000)**: in this region no two ≥3-day heat segments are separated by ≤2 cool days, so **A and B are exactly
+  identical** (merging has no effect).
+- **Extreme year (2022)**: merging reduces the number of processes by 646 (2,639→1,993, about −24%), the longest process
+  lengthens from
+  22 d to **26 d**, and the total span exceeds the heatwave-day count by 814 cool gap days; **the number of heatwave days is unchanged**
+  (merging only regroups and does not change which days are hot days).
 
-**代表格点**（114.50°E、31.75°N，2022）：A=10 次/52 高温日/最长 16 d →
-B=7 过程/最长跨度 21 d；例：`06-24~07-02 跨度9d 高温7d 间隔2d`、
-`08-02~08-22 跨度21d 高温20d 间隔1d`。
+**Representative grid cell** (114.50°E, 31.75°N, 2022): A = 10 events / 52 heatwave days / longest 16 d →
+B = 7 processes / longest span 21 d; examples: `06-24~07-02 span 9d heatwave days 7d gap 2d`,
+`08-02~08-22 span 21d heatwave days 20d gap 1d`.
 
-### 段合并结论
+### Segment-merge conclusion
 
-1. 合并**不改变高温日数**，只改变“事件”的计数与跨度口径（把被 1–2 个凉日隔开的
-   高温过程视为一次更长过程）。
-2. 差异在**极端年显著、普通年为零**：2022 事件数 −24%、最长过程 +4 d；2000 无差异。
-3. 缺测按规则**绝不参与合并**，故缺测不会造成假连接。
+1. Merging **does not change the number of heatwave days**, only the "event" count and span convention (treating hot
+   processes separated by 1–2 cool days as one longer process).
+2. The difference is **notable in the extreme year and zero in the ordinary year**: 2022 event count −24%, longest
+   process +4 d; 2000 shows no difference.
+3. Missing data by rule **never participates in merging**, so missing data cannot cause false connections.
 
 ---
 
-## 待确认的定义选择（清单）
+## Definitions to be confirmed (checklist)
 
-1. **事件定义**：维持 A（严格连续 ≥3 天）？还是采用 B（合并 ≤2 凉日间隔的过程）？
-   若采用 B，需确认“间隔日”是否计入过程总时长（本报告默认**不计入高温日数、计入
-   过程跨度**）。
-2. **季节边界**：维持“截断后识别”（事件必须完整落在 5–9 月）？还是改为“全年识别
-   后按季节归属”（会把跨 4–5 月/9–10 月的连续段计入）？
-3. **有效性门**：确认“可判定日数 = 0 → 缺测”这一规则；是否要把 343 个“缺 1 天”的
-   格点-年也提升为“不可判定”（本报告仅标记为不完整，指标照常计算）？
-4. **汇总口径**：确认采用“有效格点未加权算术平均、非面积加权”（本报告已采用）；
-   是否需要进一步做边界+面积加权（需先取得经核实的中国边界）。
-5. **强度口径**：确认“仅对有热浪日的年份求平均”（丢弃无热浪年），与日数口径
-   （无热浪年记 0）不同。
+1. **Event definition**: keep A (strict consecutive ≥3 days)? or adopt B (merge processes with ≤2 cool gap days)?
+   If B is adopted, confirm whether "gap days" are counted in the process total duration (this report defaults to
+   **not counting them in the number of heatwave days, but counting them in
+   the process span**).
+2. **Season boundary**: keep "identify after truncation" (events must fall entirely within May–September)? or change
+   to "identify year-round
+   then assign by season" (which would count continuous runs crossing April–May/September–October)?
+3. **Validity gate**: confirm the "decidable-day count = 0 → missing" rule; should the 343 "lacking 1 day"
+   grid cell-years also be promoted to "undecidable" (this report only flags them incomplete, with indicators
+   computed as usual)?
+4. **Aggregation convention**: confirm "unweighted arithmetic mean over valid grid cells, not area-weighted" (already
+   adopted in this report);
+   is boundary + area weighting further needed (which requires first obtaining a verified China boundary)?
+5. **Intensity convention**: confirm "average only over years with heatwave days" (discarding no-heatwave years),
+   which differs from the days convention
+   (no-heatwave years recorded as 0).

@@ -38,8 +38,8 @@ Definition implemented here (see docs/heatwave_method_v2.md):
         3  heatwave day          valid, Tmax > threshold, in a >=3-day run
         4  gap day               valid, Tmax <= threshold, 1-day gap inside a
                                  merged process
-    "Exceedance day" (超阈值日) = code 2 or 3; "heatwave day" (热浪日) = code 3
-    only; "gap day" (间隔日) = code 4 only.
+    "Exceedance day" = code 2 or 3; "heatwave day" = code 3
+    only; "gap day" = code 4 only.
 
 Units: Tmax, thresholds and exceedance intensity in degrees Celsius.
 """

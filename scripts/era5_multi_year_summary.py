@@ -129,20 +129,22 @@ def main():
 
     # ---- markdown report ----
     L = []
-    L.append("# 多年（2011–2022）暖季逐月逐年描述性指标汇总（仅汇总既有指标）\n\n")
-    L.append("本报告**不新增任何指标、不重新计算任何逐年阈值/均值**，只把逐年已算好的"
-             "空间中位数汇总成“多年中位数（中位数之中位数）”。\n\n")
-    L.append("## 覆盖\n\n")
-    L.append(f"- 完整纳入年份（资源比较与联合偏低两份逐年汇总均存在）：{years}（共 {len(years)} 年）。\n")
+    L.append("# Multi-year (2011–2022) warm-season per-month per-year descriptive summary (aggregation of existing indicators only)\n\n")
+    L.append("This report **adds no new indicators and does not recompute any per-year "
+             "thresholds/means**; it only aggregates the already-computed per-year spatial "
+             "medians into a \"multi-year median (median of medians)\".\n\n")
+    L.append("## Coverage\n\n")
+    L.append(f"- Complete years included (both the resource-comparison and joint-low per-year "
+             f"summaries exist): {years} ({len(years)} years).\n")
     if missing:
-        L.append(f"- **缺失、未纳入年份：{missing}**（如实报告，不作为完整年份汇总）。\n")
+        L.append(f"- **Missing / excluded years: {missing}** (reported honestly, not summarized as complete years).\n")
     else:
-        L.append("- 全部 2011–2022 年（12 年）均已完整纳入。\n")
-    L.append("\n指标含义（与逐年脚本一致，未改动）：\n")
-    L.append("- `wpd` / `pvpot`：逐年 `era5_monthly_compare.py` 的**热浪日−普通日**差值（日界 B）逐月空间格点中位数。\n")
-    L.append("- `joint_low`：逐年 `era5_joint_low_analysis.py` 的**同时偏低比例差**（热浪−普通，日界 B，百分点）逐月空间格点中位数。\n")
-    L.append("- “多年中位数”= 逐年空间格点中位数跨年份的中位数；"
-             "**不是**把各年逐日数据直接混池再算。\n\n")
+        L.append("- All 2011–2022 years (12 years) are fully included.\n")
+    L.append("\nIndicator meanings (identical to the per-year scripts, unchanged):\n")
+    L.append("- `wpd` / `pvpot`: per-year `era5_monthly_compare.py` **heatwave − ordinary** difference (boundary B), monthly spatial grid-cell median.\n")
+    L.append("- `joint_low`: per-year `era5_joint_low_analysis.py` **simultaneous-low proportion difference** (heatwave − ordinary, boundary B, percentage points), monthly spatial grid-cell median.\n")
+    L.append("- \"Multi-year median\" = median across years of the per-year spatial grid-cell medians; "
+             "**not** pooling all years' daily data first and then computing.\n\n")
 
     metric_label = {"wpd": "WPD diff (W m-2)", "pvpot": "PV-pot diff (kWh m-2)",
                     "joint_low": "joint-low diff (pp)"}
@@ -158,21 +160,25 @@ def main():
             med = None
         L.append(f"### {MONTH_LABEL[m_int]} — {metric_label[metric]}\n\n")
         if n == 0:
-            L.append("无完整年份数据。\n\n")
+            L.append("No complete-year data.\n\n")
             continue
-        L.append("| 年 | diff 中位数 | 多年中位数 |\n")
+        L.append("| year | diff median | multi-year median |\n")
         L.append("|---|---|---|\n")
         for y, v in vals:
             L.append(f"| {y} | {v:.6g} | {fnum(med, 6)} |\n")
-        L.append(f"\n> 多年中位数 = {fnum(med, 6)}（n={n} 年）。\n\n")
+        L.append(f"\n> Multi-year median = {fnum(med, 6)} (n={n} years).\n\n")
 
-    L.append("## 说明与边界\n\n")
-    L.append("- 逐年空间格点中位数彼此不独立（同区域、逐月时间相关），多年中位数"
-             "仅作跨年汇总展示，**不是**置信区间，**不是**显著性检验，**不是**长期气候结论。\n")
-    L.append("- 逐年“偏低”阈值是**逐年**逐月相对 P25，各年独立计算；多年中位数"
-             "只是把这些逐年结果汇总，不改变逐年定义。\n")
-    L.append("- 逐年资源比较与联合偏低的完整说明见各年 `REPORT_monthly_*.md` / "
-             "`REPORT_joint_low_*.md`；相关性多年汇总见 `REPORT_wind_solar_corr_multi_*.md`。\n")
+    L.append("## Notes and boundaries\n\n")
+    L.append("- Per-year spatial grid-cell medians are not mutually independent (same region, "
+             "monthly time correlation); the multi-year median is shown only as a cross-year "
+             "aggregation, **not** a confidence interval, **not** a significance test, **not** a "
+             "long-term climate conclusion.\n")
+    L.append("- Per-year \"low\" thresholds are **per-year** per-month relative P25, computed "
+             "independently for each year; the multi-year median only aggregates these per-year "
+             "results and does not change the per-year definition.\n")
+    L.append("- Full per-year explanations of the resource comparison and joint-low analyses are in "
+             "each year's `REPORT_monthly_*.md` / `REPORT_joint_low_*.md`; the multi-year correlation "
+             "summary is in `REPORT_wind_solar_corr_multi_*.md`.\n")
 
     report_path = os.path.join(out, "REPORT_multi_year_summary.md")
     with open(report_path, "w", encoding="utf-8") as f:

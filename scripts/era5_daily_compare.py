@@ -263,32 +263,33 @@ def main():
                 ax.axvspan(xx[k] - 0.5, xx[k] + 0.5, color="#f9a825", alpha=0.10, zorder=0)
 
     ax = axes[0]
-    ax.plot(xx, pvpot_sum_B[:, i, j], color="#1565c0", lw=1.6, label="PVpot 日累计 Faiman（B）")
+    ax.plot(xx, pvpot_sum_B[:, i, j], color="#1565c0", lw=1.6, label="PVpot daily total Faiman (B)")
     ax.plot(xx, pvpot_lin_sum_B[:, i, j], color="#6a1b9a", lw=1.4, ls="--",
-            label="PVpot 日累计 线性式（B）")
+            label="PVpot daily total linear (B)")
     shade(ax)
-    ax.set_ylabel("PV 潜力日累计 (kWh/m²)")
-    ax.set_title(f"示例格点 {rlat:.2f}°N, {rlon:.2f}°E（另一示例格点，不同于 31.75°N/114.50°E）\n"
-                 f"（热浪日 {int(n_hw[i,j])}，普通非超阈值日 {int(n_ne[i,j])}）", fontsize=10)
+    ax.set_ylabel("PV potential daily total (kWh/m²)")
+    ax.set_title(f"Example cell {rlat:.2f}°N, {rlon:.2f}°E (a different example cell from 31.75°N/114.50°E)\n"
+                 f"(heatwave days {int(n_hw[i,j])}, ordinary non-exceedance days {int(n_ne[i,j])})", fontsize=10)
     ax.legend(loc="upper left", frameon=False, fontsize=8)
     ax.grid(alpha=0.25, lw=0.5)
-    ax.annotate("辐射/PV 类指标在 A、B 两套日界下相同（差异仅落在夜间 20–24 时，无短波辐射）",
+    ax.annotate("Radiation/PV-type indicators are identical under the two day boundaries A and B "
+                "(the difference falls only in the nighttime 20–24 h, with no shortwave radiation)",
                 xy=(0.01, 0.02), xycoords="axes fraction", fontsize=7.5, color="#555555")
 
     ax = axes[1]
-    ax.plot(xx, wpd_mean_A[:, i, j], color="#e65100", lw=1.6, label="WPD 日平均 日界 A")
-    ax.plot(xx, wpd_mean_B[:, i, j], color="#00695c", lw=1.4, ls="--", label="WPD 日平均 日界 B")
+    ax.plot(xx, wpd_mean_A[:, i, j], color="#e65100", lw=1.6, label="WPD daily mean, boundary A")
+    ax.plot(xx, wpd_mean_B[:, i, j], color="#00695c", lw=1.4, ls="--", label="WPD daily mean, boundary B")
     shade(ax)
-    ax.set_ylabel("WPD 日平均 (W/m²)")
+    ax.set_ylabel("WPD daily mean (W/m²)")
     ax.legend(loc="upper left", frameon=False, fontsize=8)
     ax.grid(alpha=0.25, lw=0.5)
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
-    ax.set_xlabel("2022-08（UTC 归日，见 REPORT）")
+    ax.set_xlabel("2022-08 (UTC day assignment; see REPORT)")
     for lb in ax.get_xticklabels():
         lb.set_fontsize(8)
 
-    fig.suptitle("单月探索性比较，非因果归因", fontsize=12)
+    fig.suptitle("Single-month exploratory comparison, not causal attribution", fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig.savefig(OUT_FIG, dpi=160, bbox_inches="tight")
     print(f"wrote {OUT_FIG}")
@@ -297,32 +298,38 @@ def main():
     m = lambda v: np.nanmean(v) if np.isfinite(v).any() else float("nan")
 
     table = [
-        "# 日界试算与热浪标签对照 — 简要汇总表（2022-08 单月探索）\n",
-        "| 项 | 日界 A（00–24 北京时） | 日界 B（20–20 北京时，暂定主方案） |",
+        "# Day-boundary trials vs heatwave labels — brief summary table (2022-08 single-month exploration)\n",
+        "| Item | Boundary A (00–24 Beijing time) | Boundary B (20–20 Beijing time, provisional primary) |",
         "|---|---|---|",
-        f"| 逐日 UTC 窗口（瞬时量时次） | {da.attrs['point_samples_utc']} | {db.attrs['point_samples_utc']} |",
-        f"| 逐日 UTC 窗口（时末累计时次） | {da.attrs['accum_samples_utc']} | {db.attrs['accum_samples_utc']} |",
-        "| 完整日要求 | 每格点每日 24 个有效小时，否则记 NaN | 同左 |",
-        f"| 完整格点-日数 | {int((da['valid_hours'].values==24).sum())}/14911 | {int((db['valid_hours'].values==24).sum())}/14911 |",
-        f"| 标签无效格点数（31 天全为 0） | {n_invalid} | {n_invalid} |",
-        f"| 有效匹配格点数（标签∈{{1,2,3,4}}） | {n_valid_grid}/481 | {n_valid_grid}/481 |",
-        f"| 既有热浪日又有普通非超阈值日的格点数 | {n_both} | {n_both} |",
-        f"| 有效格点中缺少任一组的格点数 | {n_missing_group} | {n_missing_group} |",
-        f"| 热浪日样本（格点×日合计） | {int(n_hw.sum())} | {int(n_hw.sum())} |",
-        f"| 普通非超阈值日样本 | {int(n_ne.sum())} | {int(n_ne.sum())} |",
-        f"| 间隙日样本 | {int(n_gap.sum())} | {int(n_gap.sum())} |",
-        f"| 孤立超标日样本 | {int(n_iso.sum())} | {int(n_iso.sum())} |",
-        f"| PVpot 日累计 热浪−非超阈值（格点等权均值，kWh/m²） | {m(pvsum_d):+.4g} | {m(pvsum_d):+.4g} |",
-        f"| PVpot 日累计 线性式 热浪−非超阈值（格点等权均值，kWh/m²） | {m(pl_sum_d):+.4g} | {m(pl_sum_d):+.4g} |",
-        f"| WPD 日平均 热浪−非超阈值（格点等权均值，W/m²） | {m(wpd_d_A):+.4g} | {m(wpd_d):+.4g} |",
-        f"| 两套日界 WPD 日平均之差（格点等权均值，W/m²） | — | {m(d_wpd):+.4g}（A−B） |",
-        f"| 两套日界 PVpot 日累计之差（格点等权均值，kWh/m²） | — | {m(d_pvpot_sum):+.4g}（A−B） |",
+        f"| Daily UTC window (instantaneous sample times) | {da.attrs['point_samples_utc']} | {db.attrs['point_samples_utc']} |",
+        f"| Daily UTC window (hour-ending accumulation times) | {da.attrs['accum_samples_utc']} | {db.attrs['accum_samples_utc']} |",
+        "| Complete-day requirement | 24 valid hours per gridpoint per day, otherwise NaN | same as left |",
+        f"| Complete gridpoint-days | {int((da['valid_hours'].values==24).sum())}/14911 | {int((db['valid_hours'].values==24).sum())}/14911 |",
+        f"| Invalid-label gridpoints (all 31 days = 0) | {n_invalid} | {n_invalid} |",
+        f"| Valid matched gridpoints (label∈{{1,2,3,4}}) | {n_valid_grid}/481 | {n_valid_grid}/481 |",
+        f"| Gridpoints with both heatwave and ordinary non-exceedance days | {n_both} | {n_both} |",
+        f"| Valid gridpoints missing either group | {n_missing_group} | {n_missing_group} |",
+        f"| Heatwave-day samples (gridpoint × day total) | {int(n_hw.sum())} | {int(n_hw.sum())} |",
+        f"| Ordinary non-exceedance-day samples | {int(n_ne.sum())} | {int(n_ne.sum())} |",
+        f"| Gap-day samples | {int(n_gap.sum())} | {int(n_gap.sum())} |",
+        f"| Isolated exceedance-day samples | {int(n_iso.sum())} | {int(n_iso.sum())} |",
+        f"| PVpot daily total heatwave−non-exceedance (equal-weight gridpoint mean, kWh/m²) | {m(pvsum_d):+.4g} | {m(pvsum_d):+.4g} |",
+        f"| PVpot daily total linear heatwave−non-exceedance (equal-weight gridpoint mean, kWh/m²) | {m(pl_sum_d):+.4g} | {m(pl_sum_d):+.4g} |",
+        f"| WPD daily mean heatwave−non-exceedance (equal-weight gridpoint mean, W/m²) | {m(wpd_d_A):+.4g} | {m(wpd_d):+.4g} |",
+        f"| Difference of the two boundaries' WPD daily mean (equal-weight gridpoint mean, W/m²) | — | {m(d_wpd):+.4g} (A−B) |",
+        f"| Difference of the two boundaries' PVpot daily total (equal-weight gridpoint mean, kWh/m²) | — | {m(d_pvpot_sum):+.4g} (A−B) |",
         "",
-        "> 汇总口径（如实说明，未新增加权）：所有“热浪−非超阈值”与“两套日界之差”均为**两步**——",
-        f"> (1) 逐格点先求该格点差值（热浪日均 − 普通非超阈值日均，或 A − B 日均）；(2) 再对 **{n_both} 个有效格点做等权算术平均**",
-        "> （每格点等权，未做 cos 纬度/面积加权，未做显著性检验）。",
-        "> PV/辐射类指标在两套日界下完全相同，因两套日界仅相差夜间 20–24 时（无短波辐射）；差异仅出现在气温、风速与 WPD（瞬时量）。",
-        "> 热浪−非超阈值差异为**单月描述性比较，非因果归因**。",
+        "> Aggregation convention (stated honestly, no weighting added): all \"heatwave−non-exceedance\" and "
+        "\"difference of the two boundaries\" values are obtained in **two steps** —",
+        f"> (1) per gridpoint first take that gridpoint's difference (heatwave-day mean − ordinary "
+        "non-exceedance-day mean, or A − B daily mean); (2) then take the **equal-weight arithmetic mean "
+        f"over {n_both} valid gridpoints**",
+        "> (each gridpoint equal weight; no cos-latitude/area weighting; no significance testing).",
+        "> PV/radiation-type indicators are identical under the two boundaries, because the two boundaries "
+        "differ only in the nighttime 20–24 h (no shortwave radiation); differences appear only in "
+        "temperature, wind speed, and WPD (instantaneous quantities).",
+        "> The heatwave−non-exceedance difference is a **single-month descriptive comparison, not causal "
+        "attribution**.",
         "",
     ]
     with open(OUT_TABLE, "w", encoding="utf-8") as f:
@@ -330,92 +337,117 @@ def main():
     print(f"wrote {OUT_TABLE}")
 
     report = [
-        "# 日界试算与热浪标签对照报告（2022-08 单月探索）",
+        "# Day-boundary trials vs heatwave labels report (2022-08 single-month exploration)",
         "",
-        "> 本轮为**探索性、单月、描述性**比较；不做显著性检验，不将格点—日当作独立样本，",
-        "> 不声称哪一种日界与 CN05.1 真正一致，不把单月结果推广为长期热浪影响。",
+        "> This round is an **exploratory, single-month, descriptive** comparison; no significance "
+        "testing, gridpoint-days are not treated as independent samples,",
+        "> no claim about which day boundary truly matches CN05.1, and no generalization of a single "
+        "month to long-term heatwave effects.",
         "",
-        "## 1. 数据与可追溯性（小时数据长期保留，不覆盖）",
+        "## 1. Data and traceability (hourly data kept long-term, not overwritten)",
         "",
-        "- 小时派生 NetCDF 长期保留：`results_hourly/era5_hourly_potential_20220731_20220901.nc`",
-        "  （Faiman 主方案）与 `era5_hourly_potential_tcell_linear_20220731_20220901.nc`",
-        "  （线性式敏感性对照）。二者均保留 UTC 时间轴、变量单位、模型公式与参数、辐射区间",
-        "  含义（`ghi=ssrd/3600`，时末 1 h 累计的区间平均）及试算状态；Faiman 与线性式以独立",
-        "  文件与独立变量名（`pvpot_*` vs `pvpot_lin_*`）明确区分。",
-        "- 日产品记录所用小时文件与聚合规则：`source_hourly`、`aggregation_order`、",
-        "  `day_window_utc`、`point_samples_utc`、`accum_samples_utc`、`valid_hours_requirement`",
-        "  等属性已写入日 NetCDF；`cn05.1_day_boundary=UNCONFIRMED`。",
-        "- 本轮未删除、未覆盖任何小时或日尺度文件，也未复制多份相同小时数据。",
+        "- Hourly derived NetCDFs are kept long-term: `results_hourly/era5_hourly_potential_20220731_20220901.nc`",
+        "  (Faiman primary) and `era5_hourly_potential_tcell_linear_20220731_20220901.nc`",
+        "  (linear-form sensitivity control). Both retain the UTC time axis, variable units, model "
+        "formulas and parameters, the meaning of the radiation interval (`ghi=ssrd/3600`, the "
+        "hour-ending 1 h accumulation's interval average), and the trial status; Faiman and the "
+        "linear form are clearly distinguished by separate files and separate variable names "
+        "(`pvpot_*` vs `pvpot_lin_*`).",
+        "- The daily products record the hourly files and aggregation rules used: `source_hourly`, "
+        "`aggregation_order`, `day_window_utc`, `point_samples_utc`, `accum_samples_utc`, "
+        "`valid_hours_requirement`, and other attributes have been written to the daily NetCDF; "
+        "`cn05.1_day_boundary=UNCONFIRMED`.",
+        "- This round deleted or overwrote no hourly or daily file, and made no extra copies of the "
+        "same hourly data.",
         "",
-        "## 2. 实际 UTC 起止与完整日",
+        "## 2. Actual UTC start/end and complete days",
         "",
-        f"- 日界 A（日历 00–24 北京时）：瞬时量 {da.attrs['point_samples_utc']}；",
-        f"  时末累计 {da.attrs['accum_samples_utc']}。",
-        f"- 日界 B（20–20 北京时，暂定主方案，CN05.1 日界未确认）：",
-        f"  瞬时量 {db.attrs['point_samples_utc']}；时末累计 {db.attrs['accum_samples_utc']}。",
-        f"- 完整日：31 天 × 13×37 格点 = 14911 格点-日；A 完整 {int((da['valid_hours'].values==24).sum())}，",
-        f"  B 完整 {int((db['valid_hours'].values==24).sum())}（均 24 有效小时，无缺测）。",
+        f"- Boundary A (calendar 00–24 Beijing time): instantaneous {da.attrs['point_samples_utc']};",
+        f"  hour-ending accumulation {da.attrs['accum_samples_utc']}.",
+        f"- Boundary B (20–20 Beijing time, provisional primary, CN05.1 day boundary unconfirmed):",
+        f"  instantaneous {db.attrs['point_samples_utc']}; hour-ending accumulation {db.attrs['accum_samples_utc']}.",
+        f"- Complete days: 31 days × 13×37 gridpoints = 14911 gridpoint-days; A complete "
+        f"{int((da['valid_hours'].values==24).sum())},",
+        f"  B complete {int((db['valid_hours'].values==24).sum())} (all 24 valid hours, no missing).",
         "",
-        "## 3. 标签连接",
+        "## 3. Label join",
         "",
-        "- 坐标与日期逐项核对一致（纬度 30–33°N 升序、经度 112–121°E 升序、08-01–08-31 对齐），",
-        "  采用**精确匹配 + 重排**，无最近邻、无插值。",
-        f"- 标签无效格点数（31 天全为 0）：{n_invalid}；有效匹配格点数（标签∈{{1,2,3,4}}）：{n_valid_grid}。",
-        f"- 既有热浪日(3)又有普通非超阈值日(1)的格点：{n_both}；有效格点中缺少任一组的格点：{n_missing_group}。",
-        f"  （关系：481 = {n_valid_grid} 有效 + {n_invalid} 无效；{n_valid_grid} 个有效格点本月**全部**同时含热浪日",
-        f"  与非超阈值日，故“两者都有”=“有效”={n_both}，不存在 475。）",
-        f"- PV 分组差（热浪−非超阈值）逐格点符号：正 {pv_pos} / 零 {pv_zero} / 负 {pv_neg}（另有 {n_invalid} 格点无对照记 NaN）。",
-        f"- 标签样本（格点×日合计）：热浪日 {int(n_hw.sum())}，普通非超阈值日 {int(n_ne.sum())}，",
-        f"  间隙日 {int(n_gap.sum())}，孤立超标日 {int(n_iso.sum())}；缺失(0)不计入任何组，也**绝不**当作非热浪日。",
-        f"- 对跨 8 月边界的热浪事件**只取 8 月内逐日状态**，不重编号、不重算持续时长。",
+        "- Coordinates and dates were checked item by item and are consistent (latitude 30–33°N "
+        "ascending, longitude 112–121°E ascending, 08-01–08-31 aligned), using **exact match + "
+        "reordering**, no nearest-neighbour, no interpolation.",
+        f"- Invalid-label gridpoints (all 31 days = 0): {n_invalid}; valid matched gridpoints "
+        f"(label∈{{1,2,3,4}}): {n_valid_grid}.",
+        f"- Gridpoints with both heatwave(3) and ordinary non-exceedance(1) days: {n_both}; valid "
+        f"gridpoints missing either group: {n_missing_group}.",
+        f"  (Relationship: 481 = {n_valid_grid} valid + {n_invalid} invalid; **all** {n_valid_grid} "
+        f"valid gridpoints this month contain both heatwave days and non-exceedance days, so "
+        f"\"both present\" = \"valid\" = {n_both}; there is no 475.)",
+        f"- PV group-difference (heatwave−non-exceedance) per-gridpoint sign: positive {pv_pos} / "
+        f"zero {pv_zero} / negative {pv_neg} (plus {n_invalid} gridpoints with no control, recorded "
+        "as NaN).",
+        f"- Label samples (gridpoint × day total): heatwave days {int(n_hw.sum())}, ordinary "
+        f"non-exceedance days {int(n_ne.sum())},",
+        f"  gap days {int(n_gap.sum())}, isolated exceedance days {int(n_iso.sum())}; missing (0) "
+        f"is counted in no group and is **never** treated as a non-heatwave day.",
+        f"- For heatwave events crossing the August boundary, **only the within-August daily states "
+        "are taken**; they are not renumbered and their durations are not recomputed.",
         "",
-        "## 4. 描述性比较结果",
+        "## 4. Descriptive comparison results",
         "",
-        "> 汇总口径（如实说明，未新增加权）：1.889、−1.05、+1.75、0.032 等汇总数均为**两步**得到——",
-        "> (1) 逐格点先求该格点差值（热浪日均值 − 普通非超阈值日均值；日累计 kWh/m² 或日均 W/m²）；",
-        f"> (2) 再对 **{n_both} 个有效格点做等权算术平均**（每格点等权，未做 cos 纬度/面积加权，未做显著性检验）。",
-        "> 各均值所用有效格点数在下方括号 `n=…` 注明。",
+        "> Aggregation convention (stated honestly, no weighting added): summary numbers such as "
+        "1.889, −1.05, +1.75, 0.032 are all obtained in **two steps** —",
+        "> (1) per gridpoint first take that gridpoint's difference (heatwave-day mean − ordinary "
+        "non-exceedance-day mean; daily total kWh/m² or daily mean W/m²);",
+        f"> (2) then take the **equal-weight arithmetic mean over {n_both} valid gridpoints** (each "
+        "gridpoint equal weight; no cos-latitude/area weighting; no significance testing).",
+        "> The number of valid gridpoints used for each mean is noted in the trailing `n=…`.",
         "",
-        "### 4.1 两套日界差异（逐格点日值之差，A−B）",
+        "### 4.1 Difference between the two boundaries (per-gridpoint daily-value difference, A−B)",
         "",
-        f"- PVpot 日累计：{spatial(d_pvpot_sum, 'd_pvpot_sum', 'kWh/m2')}（恒为 0）。",
-        f"- PVpot 日平均：{spatial(d_pvpot_mean, 'd_pvpot_mean', 'W/m2')}（恒为 0）。",
-        f"- WPD 日平均：{spatial(d_wpd, 'd_wpd_mean', 'W/m2')}。",
-        f"- 气温日平均：{spatial(d_tair, 'd_tair_mean', 'degC')}。",
+        f"- PVpot daily total: {spatial(d_pvpot_sum, 'd_pvpot_sum', 'kWh/m2')} (always 0).",
+        f"- PVpot daily mean: {spatial(d_pvpot_mean, 'd_pvpot_mean', 'W/m2')} (always 0).",
+        f"- WPD daily mean: {spatial(d_wpd, 'd_wpd_mean', 'W/m2')}.",
+        f"- Temperature daily mean: {spatial(d_tair, 'd_tair_mean', 'degC')}.",
         "",
-        "> 结论：辐射/PV 类日指标在两套日界下**完全相同**——两套日界仅相差夜间 20–24 时",
-        "> （北京时），该时段无短波辐射，故 GHI/PVpot 日累计与日平均不变；差异仅体现在瞬时量",
-        "> （气温、风速、WPD）上。",
+        "> Conclusion: radiation/PV-type daily indicators are **identical** under the two boundaries "
+        "— the two boundaries differ only in the nighttime 20–24 h (Beijing time), when there is no "
+        "shortwave radiation, so the GHI/PVpot daily total and daily mean are unchanged; differences "
+        "appear only in instantaneous quantities (temperature, wind speed, WPD).",
         "",
-        "### 4.2 热浪日 vs 普通非超阈值日（逐格点，日界 B 为主）",
+        "### 4.2 Heatwave days vs ordinary non-exceedance days (per gridpoint, boundary B primary)",
         "",
-        f"- PVpot 日累计 热浪−非超阈值：{spatial(pvsum_d, '', 'kWh/m2').split(':',1)[1]}",
-        f"- PVpot 日平均 热浪−非超阈值：{spatial(pvmean_d, '', 'W/m2').split(':',1)[1]}",
-        f"- WPD 日平均 热浪−非超阈值（日界 B）：{spatial(wpd_d, '', 'W/m2').split(':',1)[1]}",
-        f"- WPD 日平均 热浪−非超阈值（日界 A）：{spatial(wpd_d_A, '', 'W/m2').split(':',1)[1]}",
-        "- 无普通非超阈值日（无对照）的格点记 NaN，不向邻近格点借用。",
+        f"- PVpot daily total heatwave−non-exceedance: {spatial(pvsum_d, '', 'kWh/m2').split(':',1)[1]}",
+        f"- PVpot daily mean heatwave−non-exceedance: {spatial(pvmean_d, '', 'W/m2').split(':',1)[1]}",
+        f"- WPD daily mean heatwave−non-exceedance (boundary B): {spatial(wpd_d, '', 'W/m2').split(':',1)[1]}",
+        f"- WPD daily mean heatwave−non-exceedance (boundary A): {spatial(wpd_d_A, '', 'W/m2').split(':',1)[1]}",
+        "- Gridpoints with no ordinary non-exceedance day (no control) are recorded NaN, not borrowed "
+        "from neighbouring gridpoints.",
         "",
-        "### 4.3 Faiman vs 线性式（热浪−非超阈值 PV 差，模型敏感性）",
+        "### 4.3 Faiman vs linear form (heatwave−non-exceedance PV difference, model sensitivity)",
         "",
-        f"- Faiman：{spatial(pvsum_d, 'pvpot_sum hw-non-exceed', 'kWh/m2')}",
-        f"- 线性式：{spatial(pl_sum_d, 'pvpot_sum hw-non-exceed', 'kWh/m2')}",
-        f"- (Faiman−线性式) 之差：{spatial(sens_sum, '', 'kWh/m2').split(':',1)[1]}",
+        f"- Faiman: {spatial(pvsum_d, 'pvpot_sum hw-non-exceed', 'kWh/m2')}",
+        f"- Linear form: {spatial(pl_sum_d, 'pvpot_sum hw-non-exceed', 'kWh/m2')}",
+        f"- (Faiman−linear form) difference: {spatial(sens_sum, '', 'kWh/m2').split(':',1)[1]}",
         "",
-        "> 辐射/PV 结果与日界无关，故两套日界下该敏感性相同。",
+        "> Radiation/PV results are independent of the day boundary, so this sensitivity is the same "
+        "under the two boundaries.",
         "",
-        "### 4.4 示例格点时间序列",
+        "### 4.4 Example-cell time series",
         "",
-        f"- 示例格点 {rlat:.2f}°N, {rlon:.2f}°E（另一示例格点，不同于 31.75°N/114.50°E；热浪日 {int(n_hw[i,j])}，普通非超阈值日 {int(n_ne[i,j])}，",
-        f"  间隙日 {int(n_gap[i,j])}，孤立超标日 {int(n_iso[i,j])}），见 `{os.path.basename(OUT_FIG)}`。",
-        "- 图题：**单月探索性比较，非因果归因**。",
+        f"- Example cell {rlat:.2f}°N, {rlon:.2f}°E (a different example cell from 31.75°N/114.50°E; "
+        f"heatwave days {int(n_hw[i,j])}, ordinary non-exceedance days {int(n_ne[i,j])},",
+        f"  gap days {int(n_gap[i,j])}, isolated exceedance days {int(n_iso[i,j])}); see "
+        f"`{os.path.basename(OUT_FIG)}`.",
+        "- Figure title: **single-month exploratory comparison, not causal attribution**.",
         "",
-        "## 5. 交付物",
+        "## 5. Deliverables",
         "",
-        f"- 试算日 NetCDF：`era5_daily_potential_202208_A.nc`、`_B.nc`（两套日界分开保存）。",
-        f"- 逐格点比较 NetCDF：`{os.path.basename(OUT_NC)}`。",
-        f"- 简要汇总表：`{os.path.basename(OUT_TABLE)}`。",
-        f"- 示例格点图：`{os.path.basename(OUT_FIG)}`。",
-        f"- 本报告：`{os.path.basename(OUT_REPORT)}`。",
+        f"- Trial daily NetCDFs: `era5_daily_potential_202208_A.nc`, `_B.nc` (the two boundaries "
+        "saved separately).",
+        f"- Per-gridpoint comparison NetCDF: `{os.path.basename(OUT_NC)}`.",
+        f"- Brief summary table: `{os.path.basename(OUT_TABLE)}`.",
+        f"- Example-cell figure: `{os.path.basename(OUT_FIG)}`.",
+        f"- This report: `{os.path.basename(OUT_REPORT)}`.",
         "",
     ]
     with open(OUT_REPORT, "w", encoding="utf-8") as f:

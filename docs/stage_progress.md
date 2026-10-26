@@ -1,53 +1,64 @@
-# 阶段进度说明（核查日期：2026-10-26）
+# Stage Progress Note (verification date: 2026-10-26)
 
-本文为**简洁的阶段进度**，与运行中的 `results_multi/STATE.json`、`PROGRESS.md`
-及各类日志分开，专用于公开仓库的状态记录。仅陈述**已完成并核验**的内容。
+This document is a **concise stage progress note**, kept separate from the running
+`results_multi/STATE.json`, `PROGRESS.md`, and the various logs, for status recording
+in the public repository. It states only **completed and verified** content.
 
-## 已完成（已核验）
+## Completed (verified)
 
-### 热浪识别（CN05.1）
+### Heatwave Identification (CN05.1)
 
-- 阈值：基准期 1981–2010，逐格点、逐日历日 Tmax P90（5 日滑动窗口、numpy 线性
-  插值 Type 7、最小样本 ≥100）；输出 `results_fixed/hw_threshold_1981-2010.nc`。
-- 2022 年事件识别（合并定义，见 `docs/heatwave_method_v2.md`）已完成并核验；
-  输出 `results_merge/hw_2022_events_merged.csv`、`hw_2022_daily_labels.nc`、
-  区域汇总 `hw_2022_region_summary.txt`。
-- 1961–2022 年度热浪日数已生成：`results_fixed/hw_annual_1961-2022.nc`。
+- Thresholds: baseline period 1981–2010, per-grid-cell, per-calendar-day Tmax P90
+  (5-day sliding window, numpy linear interpolation Type 7, minimum sample ≥100);
+  output `results_fixed/hw_threshold_1981-2010.nc`.
+- 2022 event identification (merging definition, see `docs/heatwave_method_v2.md`) is
+  completed and verified; output `results_merge/hw_2022_events_merged.csv`,
+  `hw_2022_daily_labels.nc`, and the regional summary `hw_2022_region_summary.txt`.
+- Annual heatwave-day counts for 1961–2022 are generated:
+  `results_fixed/hw_annual_1961-2022.nc`.
 
-### 能源分析（ERA5，2022 试点，完整核验）
+### Energy Analysis (ERA5, 2022 Pilot, Fully Verified)
 
-- 下载 + 完整性核验：2022 暖季小时数据（6 变量，3720 小时，13×37，0 NaN）。
-- 小时潜力：`results_hourly/`（Faiman 主方案 + 线性式敏感性）。
-- 日聚合：`results_daily/`（日界 A/B 双口径）。
-- 分析：`results_monthly/`（热浪 vs 普通月度比较）、`results_complementarity/`
-  （Pearson/Spearman 相关）、`results_joint/`（风光同时偏低）、`results_case/`
-  （示例格点过程）。
+- Download + completeness verification: 2022 warm-season hourly data (6 variables,
+  3720 hours, 13×37, 0 NaN).
+- Hourly potential: `results_hourly/` (Faiman primary scheme + linear-formula
+  sensitivity).
+- Daily aggregation: `results_daily/` (day-boundary A/B two definitions).
+- Analysis: `results_monthly/` (heatwave vs ordinary month comparison),
+  `results_complementarity/` (Pearson/Spearman correlation), `results_joint/`
+  (simultaneous wind/solar low), `results_case/` (example grid-cell processes).
 
-### 多年扩展（2011–2022）
+### Multi-Year Extension (2011–2022)
 
-- 已完成“下载 + 完整性核验 + 基础处理”的年份（共 8 年）：
-  **2011、2012、2013、2014、2015、2016、2017、2022（复用试点）**。
-- 每一年均通过：解包、`verify`（3720 小时 / 6 变量 / 13×37 / 0 NaN / 值域）、
-  小时潜力、日聚合（A/B）、标签、对齐。
+- Years with completed "download + completeness verification + basic processing"
+  (8 years in total):
+  **2011, 2012, 2013, 2014, 2015, 2016, 2017, 2022 (reused from the pilot)**.
+- Each year passes: unpacking, `verify` (3720 hours / 6 variables / 13×37 / 0 NaN /
+  value range), hourly potential, daily aggregation (A/B), labels, alignment.
 
-## 进行中（未完成）
+## In Progress (Not Complete)
 
-- **2018–2021 年**：下载/处理进行中（2026-10-26 时 2018 年 5–8 月已下载，9–10 月
-  及 2019–2021 待处理）。编排进程与看门狗仍在运行，进度见本地
-  `results_multi/STATE.json` 与 `orchestrator.log`。
-- **多年汇总分析**：合并相关（`era5_wind_solar_correlation_multi.py`）与跨年摘要
-  （`era5_multi_year_summary.py`）须待 12 年逐年分析完成后运行，**尚未开始**。
+- **2018–2021**: download/processing in progress (as of 2026-10-26, May–August 2018 is
+  downloaded; September–October and 2019–2021 are pending). The orchestration process
+  and watchdog are still running; progress is in the local `results_multi/STATE.json`
+  and `orchestrator.log`.
+- **Multi-year summary analysis**: the merged correlation
+  (`era5_wind_solar_correlation_multi.py`) and cross-year summary
+  (`era5_multi_year_summary.py`) must wait until the 12 years of per-year analysis are
+  complete and **have not yet started**.
 
-## 诚实报告约定
+## Honest Reporting Conventions
 
-- 在 2011–2022 完整 12 年分析完成前，**不**生成完整 12 年的汇总或结论，不把
-  8 年的“下载+核验+基础处理”表述为完整分析。
-- 当前可引用的科学结论仅限 **2022 单年试点**（描述性、非因果），边界见
-  `README.md` §8。
+- Before the full 12-year analysis for 2011–2022 is complete, **do not** produce full
+  12-year summaries or conclusions, and do not present the 8 years of "download +
+  verification + basic processing" as a complete analysis.
+- The currently citable scientific conclusions are limited to the **2022 single-year
+  pilot** (descriptive, non-causal), with boundaries in `README.md` §8.
 
-## 公开范围
+## Public Scope
 
-- 已公开：方法文档（`docs/`）、代码（`scripts/`，不含内嵌本机路径的编排驱动）、
-  README、本进度说明。
-- 未公开：CN05.1 原始数据、ERA5 原始下载、所有派生数值/图件（CN05.1 派生成果
-  公开许可未确认）、`results_multi/` 运行状态与日志。
+- Published: method documents (`docs/`), code (`scripts/`, excluding the orchestration
+  driver with embedded local-machine paths), README, and this progress note.
+- Not published: CN05.1 raw data, ERA5 raw downloads, all derived values/figures (the
+  public licence for CN05.1-derived products is not yet confirmed), and the
+  `results_multi/` run status and logs.

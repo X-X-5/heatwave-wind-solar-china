@@ -553,32 +553,36 @@ def make_fig(delta_r_B, r_hw_B, r_ne_B, n_hw_B, n_ne_B, outfig):
 
 def write_report(args, main_rows, filt_rows, ps_rows, ab_rows, jul_rows, subset_ok, out_md):
     L = []
-    L.append("# 2022 年风-光时间相关（热浪日 vs 普通日）探索\n\n")
-    L.append("资源层面的时间互补性探索。**不是**联合发电稳定性评估，**不是**热浪因果归因。\n\n")
+    L.append("# 2022 wind–solar temporal correlation (heatwave vs ordinary days) exploration\n\n")
+    L.append("A resource-level temporal-complementarity exploration. **Not** a joint-generation stability "
+             "assessment, **not** a causal attribution of heatwave effects.\n\n")
 
-    L.append("## 输入\n\n")
-    L.append(f"- 日尺度潜力（日界 A）：`{os.path.basename(args.daily_a)}`\n")
-    L.append(f"- 日尺度潜力（日界 B，暂定主方案）：`{os.path.basename(args.daily_b)}`\n")
-    L.append(f"- 对齐 CN05.1 标签：`{os.path.basename(args.labels)}`（日界 UNCONFIRMED）\n")
-    L.append("- 主分析：Faiman 日累计 PV 潜力（`pvpot_sum`）+ 日平均 WPD（`wpd_mean`），日界 B；"
-             "日界 A 作敏感性。\n\n")
+    L.append("## Inputs\n\n")
+    L.append(f"- Daily potential (boundary A): `{os.path.basename(args.daily_a)}`\n")
+    L.append(f"- Daily potential (boundary B, provisional primary): `{os.path.basename(args.daily_b)}`\n")
+    L.append(f"- Aligned CN05.1 labels: `{os.path.basename(args.labels)}` (day boundary UNCONFIRMED)\n")
+    L.append("- Main analysis: Faiman daily-total PV potential (`pvpot_sum`) + daily-mean WPD (`wpd_mean`), "
+             "boundary B; boundary A as sensitivity.\n\n")
 
-    L.append("## 方法\n\n")
-    L.append("- 逐格点、逐月，分别取热浪高温日（label=3）与普通非超阈值日（label=1）；"
-             "排除 label=0/2/4，间隔日不混入普通日。\n")
-    L.append("- 每组使用 PV 与 WPD 同时有限的成对日样本，计算 Pearson r、Spearman rho"
-             "（秩的平均秩）、成对有效日数 n、两变量标准差（ddof=1）、"
-             "连续日期段数与最长连续段天数（仅提示样本集中程度，不解释为独立事件数）。\n")
-    L.append(f"- 主展示：两组各 ≥{MAIN_MIN} 天；探索性敏感性：两组各 ≥{SENS_MIN} 天。"
-             "门槛为展示筛选，**不是**统计可靠性标准，未据结果调整。\n")
-    L.append("- 若成对样本不足（n<2）或任一变量无变率，r 与 rho 记 NaN，并记录原因"
-             "（1=样本不足、2=PV 常量、3=WPD 常量）。\n")
-    L.append("- 组间：delta_r = r_热浪 − r_普通，delta_rho = rho_热浪 − rho_普通，"
-             "只在两组均可计算的共同格点上计算；两组系数与差值都保留。\n\n")
+    L.append("## Method\n\n")
+    L.append("- Per gridpoint per month, take heatwave days (label=3) and ordinary non-exceedance days "
+             "(label=1) separately; exclude label=0/2/4, and do not fold gap days into ordinary days.\n")
+    L.append("- For each group use the paired day sample where PV and WPD are both finite, and compute "
+             "Pearson r, Spearman rho (average rank), the paired valid-day count n, the two variables' "
+             "standard deviations (ddof=1), the number of contiguous date segments and the longest segment "
+             "in days (only a hint of sample concentration, not interpreted as an independent-event count).\n")
+    L.append(f"- Main display: both groups ≥ {MAIN_MIN} days; exploratory sensitivity: both groups ≥ {SENS_MIN} "
+             "days. The threshold is a display filter, **not** a statistical reliability criterion, and was "
+             "not adjusted to the results.\n")
+    L.append("- If the paired sample is insufficient (n<2) or either variable has no variation, r and rho are "
+             "set to NaN and a reason is recorded (1=insufficient sample, 2=PV constant, 3=WPD constant).\n")
+    L.append("- Between groups: delta_r = r_heatwave − r_ordinary, delta_rho = rho_heatwave − rho_ordinary, "
+             "computed only on the common gridpoints where both groups are computable; both group coefficients "
+             "and the differences are kept.\n\n")
 
-    L.append("## 主结果（日界 B，两组各 ≥10 天）\n\n")
-    L.append("| 月 | 有效格点 | r_热浪 中位数 | r_普通 中位数 | 两组中位数之差 | "
-             "delta_r 中位数(P25–P75) | delta_r 正/零/负 |\n")
+    L.append("## Main results (boundary B, both groups ≥ 10 days)\n\n")
+    L.append("| month | valid gridpoints | r_heatwave median | r_ordinary median | difference of group medians | "
+             "delta_r median(P25–P75) | delta_r pos/zero/neg |\n")
     L.append("|---|---|---|---|---|---|---|\n")
     for r in main_rows:
         if r["n_valid"]:
@@ -587,12 +591,13 @@ def write_report(args, main_rows, filt_rows, ps_rows, ab_rows, jul_rows, subset_
                      f"{r['delta_r_median']:.3f}({r['delta_r_p25']:.3f}–{r['delta_r_p75']:.3f}) | "
                      f"{r['delta_r_pos']}/{r['delta_r_zero']}/{r['delta_r_neg']} |\n")
         else:
-            L.append(f"| {r['month']} | 0（无满足门槛的格点，如实报告） | — | — | — | — | — |\n")
-    L.append("\n> “两组中位数之差”（r_热浪中位数 − r_普通中位数）与“逐格点差值的中位数”"
-             "（delta_r 中位数）是两回事，分别列出，不互相冒充。\n\n")
+            L.append(f"| {r['month']} | 0 (no gridpoints meeting the threshold; reported honestly) | — | — | — | — | — |\n")
+    L.append("\n> The \"difference of group medians\" (r_heatwave median − r_ordinary median) and the \"median "
+             "of per-gridpoint differences\" (delta_r median) are two different things; they are listed "
+             "separately and not conflated.\n\n")
 
-    L.append("### Spearman（同门槛）\n\n")
-    L.append("| 月 | 有效格点 | rho_热浪 中位数 | rho_普通 中位数 | delta_rho 中位数(P25–P75) | 正/零/负 |\n")
+    L.append("### Spearman (same threshold)\n\n")
+    L.append("| month | valid gridpoints | rho_heatwave median | rho_ordinary median | delta_rho median(P25–P75) | pos/zero/neg |\n")
     L.append("|---|---|---|---|---|---|\n")
     for r in main_rows:
         if r["n_valid"]:
@@ -604,8 +609,8 @@ def write_report(args, main_rows, filt_rows, ps_rows, ab_rows, jul_rows, subset_
             L.append(f"| {r['month']} | 0 | — | — | — | — |\n")
     L.append("\n")
 
-    L.append(f"## 样本量敏感性（两组各 ≥{SENS_MIN} 天）\n\n")
-    L.append("| 月 | 有效格点 | delta_r 中位数(P25–P75) | 正/零/负 |\n")
+    L.append(f"## Sample-size sensitivity (both groups ≥ {SENS_MIN} days)\n\n")
+    L.append("| month | valid gridpoints | delta_r median(P25–P75) | pos/zero/neg |\n")
     L.append("|---|---|---|---|\n")
     for r in filt_rows:
         if r["n_valid"]:
@@ -613,15 +618,15 @@ def write_report(args, main_rows, filt_rows, ps_rows, ab_rows, jul_rows, subset_
                      f"{r['delta_r_median']:.3f}({r['delta_r_p25']:.3f}–{r['delta_r_p75']:.3f}) | "
                      f"{r['delta_r_pos']}/{r['delta_r_zero']}/{r['delta_r_neg']} |\n")
         else:
-            L.append(f"| {r['month']} | 0（筛选后无格点） | — | — |\n")
+            L.append(f"| {r['month']} | 0 (no gridpoints after filtering) | — | — |\n")
     L.append("\n")
 
-    L.append("## Pearson 与 Spearman 方向一致性（delta_r 与 delta_rho 的方向，日界 B）\n\n")
-    L.append("> 本表比较的是**组间差值 delta_r 与 delta_rho 的方向**，"
-             "不等同于原始相关系数 r 与 rho 的正负一致性。\n\n")
+    L.append("## Pearson vs Spearman direction consistency (direction of delta_r vs delta_rho, boundary B)\n\n")
+    L.append("> This table compares the **directions of the between-group differences delta_r and delta_rho**, "
+             "not the sign consistency of the raw correlation coefficients r and rho.\n\n")
     for min_n in (MAIN_MIN, SENS_MIN):
-        L.append(f"### 两组各 ≥{min_n} 天\n\n")
-        L.append("| 月 | 共同格点 | 同向 | 反向 | 均零 | 仅一侧零 | 反向/共同 |\n")
+        L.append(f"### Both groups ≥ {min_n} days\n\n")
+        L.append("| month | common gridpoints | same | opposite | both-zero | only-one-zero | opposite/common |\n")
         L.append("|---|---|---|---|---|---|---|\n")
         for r in ps_rows:
             if r["min_days"] != min_n:
@@ -635,13 +640,13 @@ def write_report(args, main_rows, filt_rows, ps_rows, ab_rows, jul_rows, subset_
                 L.append(f"| {r['month']} | 0 | — | — | — | — | — |\n")
         L.append("\n")
 
-    L.append("## 日界 A/B 敏感性（delta_r，共同有效格点）\n\n")
-    L.append("> 比较 delta_r 在日界 A、B 下的方向与幅度；"
-             "四类（同向/反向/均零/仅一侧零）之和等于共同格点数。\n\n")
+    L.append("## Boundary A/B sensitivity (delta_r, common valid gridpoints)\n\n")
+    L.append("> Compares the direction and magnitude of delta_r under boundaries A and B; the four classes "
+             "(same/opposite/both-zero/only-one-zero) sum to the common-gridpoint count.\n\n")
     for min_n in (MAIN_MIN, SENS_MIN):
-        L.append(f"### 两组各 ≥{min_n} 天\n\n")
-        L.append("| 月 | 共同格点 | delta_r_A 中位数(P25–P75) | delta_r_B 中位数(P25–P75) | "
-                 "delta(B−A) 中位数(P25–P75) | 同向/反向/均零/仅一侧零 | 反向/共同 |\n")
+        L.append(f"### Both groups ≥ {min_n} days\n\n")
+        L.append("| month | common gridpoints | delta_r_A median(P25–P75) | delta_r_B median(P25–P75) | "
+                 "delta(B−A) median(P25–P75) | same/opposite/both-zero/only-one-zero | opposite/common |\n")
         L.append("|---|---|---|---|---|---|---|\n")
         for r in ab_rows:
             if r["min_days"] != min_n:
@@ -658,34 +663,40 @@ def write_report(args, main_rows, filt_rows, ps_rows, ab_rows, jul_rows, subset_
                 L.append(f"| {r['month']} | 0 | — | — | — | — | — |\n")
         L.append("\n")
 
-    L.append("## 7 月样本筛选敏感性（≥10 的 31 格点 vs ≥5 额外纳入的 375 格点）\n\n")
-    L.append(f"≥10 的 31 格点是否为 ≥5 的 406 格点的子集：{'是' if subset_ok else '否'}。\n\n")
-    L.append("| 部分 | n | n_hw | n_ne | delta_r 中位数(P25–P75) | 正/零/负 |\n")
+    L.append("## July sample-filter sensitivity (≥10's 31 gridpoints vs ≥5's additionally-included 375 gridpoints)\n\n")
+    L.append(f"Whether the ≥10's 31 gridpoints are a subset of the ≥5's 406 gridpoints: {'yes' if subset_ok else 'no'}.\n\n")
+    L.append("| part | n | n_hw | n_ne | delta_r median(P25–P75) | pos/zero/neg |\n")
     L.append("|---|---|---|---|---|---|\n")
     for r in jul_rows:
-        label = "保留(≥10)" if r["part"] == "retained" else "额外(5–9)"
+        label = "retained(≥10)" if r["part"] == "retained" else "extra(5–9)"
         hw_rng = f"{r['n_hw_min']}–{r['n_hw_max']}" if r["n"] else "—"
         ne_rng = f"{r['n_ne_min']}–{r['n_ne_max']}" if r["n"] else "—"
         L.append(f"| {label} | {r['n']} | {hw_rng} | {ne_rng} | "
                  f"{r['delta_r_median']:.3f}({r['delta_r_p25']:.3f}–{r['delta_r_p75']:.3f}) | "
                  f"{r['delta_r_pos']}/{r['delta_r_zero']}/{r['delta_r_neg']} |\n")
     L.append("\n")
-    L.append("> 门槛改变同时改变了空间样本集合；目前不能区分“小样本不稳定”与“空间差异”各自的贡献，"
-             "也不能据此断言样本量造成方向反转。\n\n")
+    L.append("> Changing the threshold also changes the spatial sample set; at present we cannot separate the "
+             "contributions of \"small-sample instability\" and \"spatial differences\", nor therefore assert "
+             "that the sample size caused a direction reversal.\n\n")
 
-    L.append("## 图\n\n")
-    L.append("- `fig_wind_solar_corr_monthly_B.png` — 上图为两组 Pearson r 分布（红=热浪、蓝=普通），"
-             "下图为 delta_r 分布；每月使用同一共同格点集合并标注 n。\n\n")
+    L.append("## Figure\n\n")
+    L.append("- `fig_wind_solar_corr_monthly_B.png` — top panel: Pearson r distributions of the two groups "
+             "(red=heatwave, blue=ordinary); bottom panel: delta_r distribution; each month uses the same "
+             "common gridpoint set and annotates n.\n\n")
 
-    L.append("## 解读边界（重要）\n\n")
-    L.append("- delta 为负只表示相关关系向更负的方向移动；若两组均为正，不能直接称为“形成了反向互补”。\n")
-    L.append("- 相关系数变化不直接等同于联合供能稳定性改善。\n")
-    L.append("- 各组是选出的日样本集合，**不是**单次连续热浪过程的相关。\n")
-    L.append("- 存在时间自相关、空间依赖、组间样本量不同、高温条件筛选及变量变幅受限等问题。\n")
-    L.append("- 单年结果不能解释为热浪的因果效应或长期规律。\n")
-    L.append("- 未做常规独立样本 p 值、显著性地图或置信区间。\n")
-    L.append("- 上述“方向一致性”与 A/B 敏感性比较的是 **delta_r 的方向**，"
-             "不等同于原始相关系数 r 的正负一致性。\n")
+    L.append("## Interpretation boundaries (important)\n\n")
+    L.append("- A negative delta only means the correlation moves in a more negative direction; if both groups "
+             "are positive, it cannot be directly called \"forming reverse complementarity\".\n")
+    L.append("- A change in the correlation coefficient is not directly equivalent to an improvement in joint "
+             "supply stability.\n")
+    L.append("- Each group is a selected day-sample, **not** the correlation of a single continuous heatwave "
+             "process.\n")
+    L.append("- There are issues of temporal autocorrelation, spatial dependence, unequal group sample sizes, "
+             "high-temperature-condition selection, and limited variable ranges.\n")
+    L.append("- Single-year results cannot be interpreted as a causal effect of heatwaves or a long-term pattern.\n")
+    L.append("- No conventional independent-sample p-values, significance maps, or confidence intervals were done.\n")
+    L.append("- The \"direction consistency\" and A/B sensitivity above compare the **direction of delta_r**, "
+             "not the sign consistency of the raw correlation coefficient r.\n")
 
     write_text_guarded(out_md, "".join(L))
 

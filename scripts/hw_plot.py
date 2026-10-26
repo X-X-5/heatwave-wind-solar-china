@@ -104,10 +104,12 @@ def make_figure(suptitle, year_slice, outpath, caption=""):
     print("wrote", outpath)
 
 
-BASE_CAP = ("说明：填色为 CN05.1 Tmax 严格连续事件（≥3 天 Tmax 超过日历日 P90，未合并间隔日）。"
-            "灰色为分析掩膜外或无有效数据区域。"
-            "有效数据轮廓仅为数据覆盖范围，非独立国界。")
-DUR_CAP = ("气候态 Max duration = 1961–2022 各格点逐年最大持续天数的多年平均（非全期最大值）。")
+BASE_CAP = ("Shading: CN05.1 Tmax strict consecutive events (≥3 days with Tmax above the "
+            "calendar-day P90; gap days NOT merged). "
+            "Grey = outside the analysis mask or no valid data. "
+            "The valid-data outline shows data coverage only, not an independent national border.")
+DUR_CAP = ("Climatological Max duration = multi-year mean over 1961–2022 of each grid cell's "
+           "annual maximum duration (NOT the all-period maximum).")
 
 make_figure("CN05.1 Tmax heatwave climatology 1961-2022 (May-Sep)", None,
             os.path.join(RES, "fig_hw_climatology.png"),

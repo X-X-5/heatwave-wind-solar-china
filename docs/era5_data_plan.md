@@ -1,203 +1,271 @@
-# ERA5 小区域试点数据计划（暂不下载）
+# ERA5 Small-Area Pilot Data Plan (Not Yet Downloaded)
 
-本计划为“中国高温—风光潜力”项目的**下一阶段**准备：在 CN05.1 热浪识别（已完成的
-v2 合并定义，见 `docs/heatwave_method_v2.md`）基础上，加入小时风/光潜力计算。
-**本轮不下载、不运行任何能源计算**，仅列出数据需求与处理方法。
+This plan prepares the **next phase** of the "heatwave-period wind/solar energy potential
+over China" project: on top of the CN05.1 heatwave identification (the completed
+v2 merging definition, see `docs/heatwave_method_v2.md`), it adds hourly wind/solar
+potential calculation.
+**This round does not download or run any energy calculation**; it only lists the data
+requirements and the processing methods.
 
 ---
 
-## 1. 已有数据可复用性核查（只读，未修改旧项目）
+## 1. Review of Reusability of Existing Data (read-only; the old project was not modified)
 
-| 位置 | 内容 | 是否可复用 |
+| Location | Contents | Reusable? |
 |---|---|---|
-| 本项目 `data/` | CN05.1 逐日 Tmax | 已用（热浪识别） |
-| 旧项目 `Github Project/data/raw/era5_*` | ERA5 **月**数据（`moda`/`avgad`/`avgua`、月 GRIB、月 zip） | **否**——只有月尺度，无小时 2 m 温/100 m 风/辐射 |
-| 旧项目 `data/raw/cmip6_downloaded` | 17 模式 CMIP6 月数据（tas/rsds/sfcWind） | **否**——月尺度、非再分析小时数据 |
-| 旧项目 `data/boundaries/china_qc_boundary.shp` | 中国边界 shapefile | 可复用（后续做区域/边界掩膜时；当前试点不需要） |
-| 旧项目 `scripts/04_energy_metrics/` | 风光潜力公式（PV 组件温/性能比、风功率密度） | 可复用为**公式参考**（见 §4） |
+| This project `data/` | CN05.1 daily Tmax | Used (heatwave identification) |
+| Old project `Github Project/data/raw/era5_*` | ERA5 **monthly** data (`moda`/`avgad`/`avgua`, monthly GRIB, monthly zip) | **No** — monthly scale only, no hourly 2 m temperature / 100 m wind / radiation |
+| Old project `data/raw/cmip6_downloaded` | 17-model CMIP6 monthly data (tas/rsds/sfcWind) | **No** — monthly scale, not reanalysis hourly data |
+| Old project `data/boundaries/china_qc_boundary.shp` | China boundary shapefile | Reusable (for later regional/boundary masking; not needed for the current pilot) |
+| Old project `scripts/04_energy_metrics/` | Wind/solar potential formulas (PV cell temperature / performance ratio, wind power density) | Reusable as **formula reference** (see §4) |
 
-**结论**：本项目与旧项目都**没有**小时尺度 ERA5 数据；风/光潜力试点所需的小时
-数据需要新下载（本轮不下载）。
+**Conclusion**: Neither this project nor the old project has hourly-scale ERA5 data; the
+hourly data needed for the wind/solar potential pilot must be newly downloaded (not
+downloaded in this round).
 
-## 2. 需要的 ERA5 变量（小时，小区域 30–33°N、112–121°E）
+## 2. ERA5 Variables Needed (hourly, small area 30–33°N, 112–121°E)
 
-| 变量 | 短名 | 用途 | 备注 |
+| Variable | Short name | Use | Notes |
 |---|---|---|---|
-| 2 米气温 | `t2m` | PV 组件温 + 与 CN05.1 Tmax 日值对齐/校验 | K，需转 ℃ |
-| 100 米纬向/经向风 | `u100`, `v100` | 轮毂高度风速 `V100 = √(u²+v²)` | 直接用 100 m，无需 10→100 m 外推 |
-| 地表向下太阳辐射 | `ssrd` | PV 潜力（GHI） | **累计量**，见 §3 |
-| 10 米纬向/经向风 | `u10`, `v10` | PV 组件温冷却项 `wind10 = √(u10²+v10²)`；备用轮毂风外推 | 本项目 PV 组件温模型需要，**已纳入** |
+| 2 m temperature | `t2m` | PV cell temperature + alignment/verification against CN05.1 daily Tmax | K, must be converted to ℃ |
+| 100 m zonal/meridional wind | `u100`, `v100` | Hub-height wind speed `V100 = √(u²+v²)` | Use 100 m directly, no 10→100 m extrapolation needed |
+| Surface downward solar radiation | `ssrd` | PV potential (GHI) | **Accumulated quantity**, see §3 |
+| 10 m zonal/meridional wind | `u10`, `v10` | PV cell-temperature cooling term `wind10 = √(u10²+v10²)`; backup hub-height wind extrapolation | Needed by this project's PV cell-temperature model, **already included** |
 
-- 时间范围：至少覆盖 2022 年 5–9 月（试点）；后续再扩展到基准期 1981–2010 与全
-  研究期。
-- 空间：优先 ERA5 单层 0.25° 网格（与 CN05.1 0.25° 一致，最易对齐）；如需更细
-  可用 ERA5-Land 0.1°（但 `ssrd` 累计口径需单独核对）。
+- Time range: at least cover May–September 2022 (pilot); later extend to the
+  baseline period 1981–2010 and the full study period.
+- Space: prefer the ERA5 single-level 0.25° grid (consistent with CN05.1 0.25°,
+  easiest to align); if finer resolution is needed, ERA5-Land 0.1° may be used
+  (but the `ssrd` accumulation convention must be checked separately).
 
-## 3. 辐射累计量及单位处理（关键，已按 CDS 官方口径核对 2026-10）
+## 3. Radiation Accumulation and Unit Handling (critical; verified against the official CDS convention, 2026-10)
 
-- ERA5 单层 `surface_solar_radiation_downwards`（`ssrd`，参数 169）是**累计**量，
-  单位 **J m⁻²**（每步长内到达水平面的总短波辐射，含直射 + 散射，向下为正），
-  **不是**瞬时 W m⁻²。
-- **CDS 现行口径（2021-12-08 起）**：CDS 已停止把累计量自动换算成率值（W m⁻²），
-  现按目录定义直接返回累计 J m⁻²。因此拿到的一定是 J m⁻²，需自行换算。
-- **本计划选用的 ERA5 再分析（`reanalysis-era5-single-levels`）逐小时**：
-  - 每个时次的值是**该时次前 1 小时内的累计**（"hour ending at the validity
-    time"），例如 12:00 UTC 的值 = 11:00–12:00 UTC 的辐射能量；
-  - 因此**直接 `÷3600 s`** 即得该小时平均辐照度 `GHI [W m⁻²] = ssrd / 3600`，
-    **无需相邻时次差分**。
-- **易混淆的两点（"÷3600"不能无条件推广）**：
-  - **ERA5-Land** 小时 `ssrd` 是**自 00 UTC 起累计**（逐时递增），须先相邻差分
-    `ssrd(t) − ssrd(t−1)`（01 UTC 无需减）再 ÷3600；00 UTC 值为前一日全天累计。
-  - **集合成员/集合平均/集合离散度**是 **3 小时**累计，须 ÷10800。
-- 结论：本计划明确采用 **ERA5 再分析逐小时**（非 ERA5-Land、非集合），故每个时次
-  独立 `÷3600` 即为正确；此结论仅对"该产品 + 逐小时"成立，须在脚本/文档中显式
-  记录，避免后续误用到 ERA5-Land 时照搬。
-- 旧项目用的 `rsds`（月平均瞬时 W m⁻²）与本计划的 `ssrd`（小时累计 J m⁻²）**口径
-  不同**，不可直接套用；本计划明确采用小时 `ssrd` 并转成 W m⁻²。
+- The ERA5 single-level `surface_solar_radiation_downwards` (`ssrd`, parameter 169) is
+  an **accumulated** quantity with units of **J m⁻²** (the total shortwave radiation
+  reaching a horizontal plane within each step, including direct + diffuse, positive
+  downward), **not** instantaneous W m⁻².
+- **Current CDS convention (since 2021-12-08)**: CDS has stopped automatically
+  converting accumulated quantities to rate values (W m⁻²) and now returns the
+  accumulated J m⁻² directly per the catalogue definition. Therefore what you get is
+  always J m⁻² and must be converted yourself.
+- **The ERA5 reanalysis hourly product chosen for this plan (`reanalysis-era5-single-levels`)**:
+  - The value at each time step is the **accumulation over the 1 hour before that
+    time step** ("hour ending at the validity time"); for example, the value at
+    12:00 UTC = the radiation energy for 11:00–12:00 UTC;
+  - Therefore **directly dividing by `3600 s`** gives the hourly mean irradiance
+    `GHI [W m⁻²] = ssrd / 3600`, **with no need to difference adjacent time steps**.
+- **Two easily confused points ("÷3600" cannot be generalized unconditionally)**:
+  - **ERA5-Land** hourly `ssrd` is **accumulated from 00 UTC** (increasing hour by
+    hour); you must first difference adjacent steps `ssrd(t) − ssrd(t−1)` (no
+    subtraction needed at 01 UTC) and then divide by 3600; the 00 UTC value is the
+    full previous-day accumulation.
+  - **Ensemble members / ensemble mean / ensemble spread** are **3-hour**
+    accumulations and must be divided by 10800.
+- Conclusion: This plan explicitly uses **ERA5 reanalysis hourly** (not ERA5-Land,
+  not the ensemble), so dividing each time step independently by `3600` is correct;
+  this conclusion holds only for "that product + hourly", and must be recorded
+  explicitly in scripts/documents to avoid being copied blindly if ERA5-Land is used
+  later.
+- The old project's `rsds` (monthly-mean instantaneous W m⁻²) and this plan's `ssrd`
+  (hourly accumulated J m⁻²) have **different conventions** and cannot be applied
+  directly; this plan explicitly uses hourly `ssrd` and converts it to W m⁻².
 
-### 3.1 已核对的 CDS 请求要点（`scripts/era5_download_2022.py` 已落实）
+### 3.1 Verified CDS Request Essentials (implemented in `scripts/era5_download_2022.py`)
 
-| 项 | 值 |
+| Item | Value |
 |---|---|
-| 数据集 | `reanalysis-era5-single-levels`（ERA5 再分析单层，非 ERA5-Land） |
+| Dataset | `reanalysis-era5-single-levels` (ERA5 reanalysis single level, not ERA5-Land) |
 | `product_type` | `reanalysis` |
-| 网格 | 0.25°×0.25° 规则网格（与 CN05.1 0.25° 一致，最邻近对齐最易） |
-| 变量 | `2m_temperature`、`100m_u/v_component_of_wind`、`10m_u/v_component_of_wind`、`surface_solar_radiation_downwards`（6 个，见 §2） |
-| 时间 | 逐小时 `00:00`…`23:00`（`time` 字段） |
-| 区域 | `area = [33, 112, 30, 121]`（**北、西、南、东**顺序，单位 °） |
-| 下载格式 | `data_format = "netcdf"`（也可 `grib`；选 NetCDF 便于 xarray 读取） |
-| 凭据 | 新 CDS 用 Personal Access Token（`~/.cdsapirc`，`url: https://cds.climate.copernicus.eu/api`）；脚本**不读取、不打印**凭据 |
-| 许可证 | 下载前须在 CDS 数据集页接受 Terms of Use |
+| Grid | 0.25°×0.25° regular grid (consistent with CN05.1 0.25°, nearest-neighbour alignment is easiest) |
+| Variables | `2m_temperature`, `100m_u/v_component_of_wind`, `10m_u/v_component_of_wind`, `surface_solar_radiation_downwards` (6 variables, see §2) |
+| Time | Hourly `00:00`…`23:00` (`time` field) |
+| Area | `area = [33, 112, 30, 121]` (order **North, West, South, East**, units °) |
+| Download format | `data_format = "netcdf"` (also possible: `grib`; NetCDF chosen for easy xarray reading) |
+| Credentials | The new CDS uses a Personal Access Token (`~/.cdsapirc`, `url: https://cds.climate.copernicus.eu/api`); the script **does not read or print** credentials |
+| Licence | The Terms of Use must be accepted on the CDS dataset page before downloading |
 
-### 3.2 观测日窗口需预留的前后日期（北京时间换算已更正）
+### 3.2 Leading/Trailing Dates to Reserve for the Observation-Day Window (Beijing-time conversion corrected)
 
-CN05.1 逐日 Tmax 标注为日期 D 的值，可能对应 00–24 时或 20–20 时（北京时 =
-UTC+8）两种窗口。北京时间 = UTC+8，对日期 D 两种候选窗口的 UTC 换算为：
+A CN05.1 daily Tmax value labelled with date D may correspond to either of two windows:
+00–24 or 20–20 (Beijing time = UTC+8). With Beijing time = UTC+8, the UTC conversions
+of the two candidate windows for date D are:
 
-- 00–24 时北京时 = 前一日 `D−1 16:00 UTC` 至当日 `D 16:00 UTC`（左闭右开）；
-- 20–20 时北京时 = 前一日 `D−1 12:00 UTC` 至当日 `D 12:00 UTC`。
+- 00–24 Beijing time = from the previous day `D−1 16:00 UTC` to the same day
+  `D 16:00 UTC` (left-closed, right-open);
+- 20–20 Beijing time = from the previous day `D−1 12:00 UTC` to the same day
+  `D 12:00 UTC`.
 
-关键结论：两种窗口都**只往回伸入前一个 UTC 日**，并且**最迟在 `D 16:00 UTC`
-结束**，**不会**伸入后一日的 UTC 数据。例如 `2022-08-31` 北京时 00–24 时 =
-UTC `08-30 16:00` 至 `08-31 16:00`，完全落在 UTC 08-30/08-31 内，**不需要
-09-01 的 UTC 数据**。因此对每个分析日 D 只需**前留 1 天**（`D−1 12:00 UTC` 起）。
+Key conclusion: both windows **only reach back into the previous UTC day** and **end no
+later than `D 16:00 UTC`**, so they **do not** reach into the UTC data of the following
+day. For example, `2022-08-31` Beijing time 00–24 = UTC `08-30 16:00` to `08-31 16:00`,
+which lies entirely within UTC 08-30/08-31, so **the UTC data of 09-01 is not needed**.
+Therefore for each analysis day D only **1 leading day** must be reserved (starting from
+`D−1 12:00 UTC`).
 
-本计划目标月 2022-08 的请求窗口为 **2022-07-31 ~ 2022-09-01（33 天）**：其中
-`07-31` 是**必要**的前缓冲，`09-01` 只是为保持原 33 天计划完整而保留的**对称余量**，
-**不是** 8 月逐日聚合的正确性要求。
+The request window for this plan's target month 2022-08 is **2022-07-31 ~ 2022-09-01
+(33 days)**: `07-31` is a **necessary** leading buffer, while `09-01` is only a
+**symmetric margin** kept to preserve the completeness of the original 33-day plan,
+**not** a correctness requirement for the August daily aggregation.
 
-### 3.3 瞬时变量 vs 小时累计辐射的时间归属（不得混用同一套筛选）
+### 3.3 Time Attribution of Instantaneous Variables vs Hourly Accumulated Radiation (must not reuse the same filtering)
 
-- **瞬时变量**（`t2m`、`u10/v10`、`u100/v100`）：值是**时次点上的瞬时值**，直接
-  按时间戳 `t` 归属（如 `t=12:00 UTC` 就是 12:00 的瞬时温/风）。
-- **小时累计辐射**（`ssrd`）：值是该时次**前 1 小时**的累计（"hour ending at
-  the validity time"），须按**累计区间的结束时间**归属窗口，例如 `t=12:00 UTC`
-  的 ssrd 是 11:00–12:00 UTC 的辐射，**不能**当作 12:00 的瞬时辐照、也不能照搬
-  瞬时量的时间筛选。换算成 `GHI` 时 `÷3600`，但**归属时次仍是其结束时间**。
-- **尚未最终确定**：CN05.1 观测日的具体日期归属（00–24 还是 20–20 北京时）。在
-  CN05.1 观测日定义确认前，**不做正式日聚合**，仅按上述口径**暂存 UTC 小时
-  数据**（瞬时量按时间戳、ssrd 按结束时间），保留原始 UTC 数据，不做日值合成。
+- **Instantaneous variables** (`t2m`, `u10/v10`, `u100/v100`): the value is an
+  **instantaneous value at the time step**, attributed directly by timestamp `t`
+  (e.g. `t=12:00 UTC` is the instantaneous temperature/wind at 12:00).
+- **Hourly accumulated radiation** (`ssrd`): the value is the accumulation over the
+  **1 hour before** that time step ("hour ending at the validity time"), and must be
+  attributed to a window by the **end time of the accumulation interval**; for example,
+  the ssrd at `t=12:00 UTC` is the radiation for 11:00–12:00 UTC and **cannot** be
+  treated as the instantaneous irradiance at 12:00, nor can the instantaneous-variable
+  time filtering be copied. When converting to `GHI`, divide by `3600`, but **its
+  attribution time step is still its end time**.
+- **Not yet finalized**: the exact date attribution of the CN05.1 observation day
+  (00–24 or 20–20 Beijing time). Until the CN05.1 observation-day definition is
+  confirmed, **no formal daily aggregation is performed**; only the UTC hourly data are
+  **staged** per the above conventions (instantaneous variables by timestamp, ssrd by
+  end time), keeping the original UTC data without composing daily values.
 
-### 3.4 确认后的 ERA5 日聚合：瞬时量按时间戳、ssrd 按结束时间（两候选窗口各 24 小时）
+### 3.4 ERA5 Daily Aggregation After Confirmation: Instantaneous Variables by Timestamp, ssrd by End Time (24 hours for each candidate window)
 
-设 CN05.1 日期 D 的日值窗口为 `[T_start_UTC, T_end_UTC)`（左闭右开，北京时 = UTC+8）。
-对**同一个窗口**，两类量的选取时次**相差 1 小时**，不得混用同一套筛选：
+Let the daily-value window for CN05.1 date D be `[T_start_UTC, T_end_UTC)` (left-closed,
+right-open, Beijing time = UTC+8). For **the same window**, the selected time steps of
+the two kinds of quantities **differ by 1 hour**, and the same filtering must not be
+used for both:
 
-- **瞬时量**（`t2m`、`u10/v10`、`u100/v100`；日 max 或日 mean）：取**时次点落在
-  `[T_start, T_end)` 内**的 24 个样本，即 `T_start, T_start+1h, …, T_end−1h`。
-  边界 `T_end` 的瞬时样本**归下一日**，不得重复计入。
-- **时末累计辐射**（`ssrd`；日总和）：取**累计区间 `[t−1h, t]` 完全落在
-  `[T_start, T_end)` 内**的 24 个样本，即 `t = T_start+1h, …, T_end`。其中
-  `t=T_end` 的 ssrd 是该窗口最后一小时 `[T_end−1h, T_end)` 的辐射；`t=T_start` 的
-  ssrd 属于**前一小时**，**不得**计入（否则越界/重复）。
+- **Instantaneous variables** (`t2m`, `u10/v10`, `u100/v100`; daily max or daily mean):
+  take the 24 samples whose **time step falls within `[T_start, T_end)`**, i.e.
+  `T_start, T_start+1h, …, T_end−1h`. The instantaneous sample at the boundary `T_end`
+  **belongs to the next day** and must not be counted twice.
+- **End-of-hour accumulated radiation** (`ssrd`; daily sum): take the 24 samples whose
+  **accumulation interval `[t−1h, t]` lies entirely within `[T_start, T_end)`**, i.e.
+  `t = T_start+1h, …, T_end`. The ssrd at `t=T_end` is the radiation for the last hour
+  of the window `[T_end−1h, T_end)`; the ssrd at `t=T_start` belongs to the **previous
+  hour** and **must not** be counted (otherwise out-of-range/duplicated).
 
-| 候选窗口 | 北京时窗口 | UTC 窗口 `[T_start, T_end)` | 瞬时量时次 | ssrd 时次 |
+| Candidate window | Beijing-time window | UTC window `[T_start, T_end)` | Instantaneous-variable time steps | ssrd time steps |
 |---|---|---|---|---|
-| A：日历日 00–24 | `D 00:00–D+1 00:00` | `[D−1 16:00, D 16:00)` | D−1 16:00 … D 15:00 | D−1 17:00 … D 16:00 |
-| B：20 时–20 时（台站惯例） | `D−1 20:00–D 20:00` | `[D−1 12:00, D 12:00)` | D−1 12:00 … D 11:00 | D−1 13:00 … D 12:00 |
+| A: calendar day 00–24 | `D 00:00–D+1 00:00` | `[D−1 16:00, D 16:00)` | D−1 16:00 … D 15:00 | D−1 17:00 … D 16:00 |
+| B: 20:00–20:00 (station convention) | `D−1 20:00–D 20:00` | `[D−1 12:00, D 12:00)` | D−1 12:00 … D 11:00 | D−1 13:00 … D 12:00 |
 
-两候选都恰好 **24 小时、24 个样本，不重复、不遗漏**。以候选 B 为例：瞬时量取
-`D−1 12:00…23:00`（12 个）+ `D 00:00…11:00`（12 个）；ssrd 取 `D−1 13:00…23:00`
-（11 个）+ `D 00:00…12:00`（13 个）。
+Both candidates are exactly **24 hours / 24 samples, with no duplication or omission**.
+Taking candidate B as an example: the instantaneous variables take `D−1 12:00…23:00`
+(12 samples) + `D 00:00…11:00` (12 samples); ssrd takes `D−1 13:00…23:00` (11 samples)
++ `D 00:00…12:00` (13 samples).
 
-- 日 Tmax 对齐校验：用候选窗口内 24 个瞬时 `t2m` 的**最大值**与 CN05.1 Tmax 比对
-  （ERA5 小时最大值是连续最大值的近似，非严格相等）。
-- 目标月 2022-08 覆盖：候选 B 只需 `07-31 12:00 UTC` 起、至 `08-31 12:00 UTC` 止；
-  候选 A 至 `08-31 16:00 UTC` 止；现有 792 h（07-31 00:00–09-01 23:00）**均足够**，
-  09-01 仍非必要（仅对称余量）。
-- **在 CN05.1 日界确认前不正式日聚合**，仅在确认后按上述对应窗口取值。
+- Daily Tmax alignment check: compare the **maximum** of the 24 instantaneous `t2m`
+  samples in the candidate window with CN05.1 Tmax (the ERA5 hourly maximum is an
+  approximation of the continuous maximum, not strictly equal).
+- Target month 2022-08 coverage: candidate B only needs from `07-31 12:00 UTC` to
+  `08-31 12:00 UTC`; candidate A ends at `08-31 16:00 UTC`; the existing 792 h
+  (07-31 00:00–09-01 23:00) is **sufficient for both**, and 09-01 is still not
+  necessary (only a symmetric margin).
+- **No formal daily aggregation before the CN05.1 day boundary is confirmed**; only
+  after confirmation, values are taken per the corresponding windows above.
 
-### 3.5 派生量归属与计算顺序（补充约束）
+### 3.5 Attribution and Calculation Order of Derived Quantities (supplementary constraints)
 
-- **`ghi`/`pvpot` 继承 ssrd 的区间语义，归日用时末标签规则**：`ghi = ssrd/3600`、
-  `pvpot = PR·ghi` 均由“时末累计”ssrd 派生，代表 `[t−1h, t]` 的**区间平均量**，**不是**
-  时次点瞬时值。日汇总时它们与 ssrd **同用时末标签规则**（日总和取 `t = T_start+1h…T_end`）。
-- **禁止对整个小时 NetCDF 统一 resample**：瞬时量（t2m、u/v 风、wpd）按时次点归属，
-  ssrd/ghi/pvpot 按时末区间归属，两者相差 1 小时。故**不得**用 `groupby('valid_time.date')`
-  或 `.resample('1D')` 一次套到全部变量——那会要么把瞬时量按 UTC 日历日切错日界，要么
-  把 ssrd/ghi/pvpot 当瞬时值错位 1 小时。须**分变量、分标签**各自筛选后再汇总。
-- **WPD 日平均的采样近似（单独写明）**：`wpd = 0.5·ρ·V100³` 基于**瞬时** 100 m 风速合成
-  （时次点值），故 `wpd` 是瞬时量；其“日平均”= 窗口内 24 个瞬时 `wpd` 样本的算术平均
-  （时次点 `T_start…T_end−1h`），是对连续日平均的 **1 h 离散采样近似**，非严格积分。
-- **先小时非线性、后日汇总（顺序硬约束）**：`V100³`（立方）、`Tcell`（含 `GHI/(U0+U1·V)`
-  与线性风速项）、`PR`、`pvpot` 均为非线性量，必须**先按小时算好**，再对小时值做日平均/
-  日累计；**不得**改用日平均风速/气温/辐照重新计算（`mean(V³) ≠ mean(V)³`，
-  `mean(PVpot) ≠ PR(mean·)·mean(GHI)`）。
-- **跨日边界合成测试**：`scripts/era5_daily_aggregation_test.py` 对两候选窗口验证辐射与
-  PV 累计**不重复、不遗漏**，且**日累计之和 = 对应小时累计**；只读，不生成日产品。
+- **`ghi`/`pvpot` inherit ssrd's interval semantics and use the end-of-hour labelling
+  rule for daily attribution**: `ghi = ssrd/3600` and `pvpot = PR·ghi` are both derived
+  from the "end-of-hour accumulated" ssrd and represent the **interval-average
+  quantity** of `[t−1h, t]`, **not** the instantaneous value at the time step. For daily
+  aggregation they use the **same end-of-hour labelling rule** as ssrd (daily sum takes
+  `t = T_start+1h…T_end`).
+- **Uniform resampling of the whole hourly NetCDF is forbidden**: instantaneous
+  variables (t2m, u/v wind, wpd) are attributed by time step, while ssrd/ghi/pvpot are
+  attributed by end-of-hour interval, the two differing by 1 hour. Therefore
+  `groupby('valid_time.date')` or `.resample('1D')` must **not** be applied to all
+  variables at once — that would either cut the instantaneous variables at the wrong day
+  boundary by UTC calendar day, or shift ssrd/ghi/pvpot by 1 hour by treating them as
+  instantaneous values. Each variable must be **filtered separately by variable and by
+  label** and then aggregated.
+- **Sampling approximation of the WPD daily mean (stated separately)**: `wpd =
+  0.5·ρ·V100³` is composed from the **instantaneous** 100 m wind speed (time-step
+  values), so `wpd` is an instantaneous quantity; its "daily mean" = the arithmetic mean
+  of the 24 instantaneous `wpd` samples in the window (time steps `T_start…T_end−1h`),
+  which is a **1 h discrete-sampling approximation** of the continuous daily mean, not
+  a strict integral.
+- **Hourly non-linear quantities first, then daily aggregation (hard ordering
+  constraint)**: `V100³` (the cube), `Tcell` (containing `GHI/(U0+U1·V)` and the linear
+  wind-speed term), `PR`, and `pvpot` are all non-linear quantities and must be
+  **computed hourly first**, then daily-averaged/accumulated over the hourly values;
+  they must **not** be recomputed from daily-mean wind speed / temperature / irradiance
+  (`mean(V³) ≠ mean(V)³`, `mean(PVpot) ≠ PR(mean·)·mean(GHI)`).
+- **Cross-day-boundary composition test**: `scripts/era5_daily_aggregation_test.py`
+  verifies, for the two candidate windows, that the radiation and PV accumulation has
+  **no duplication or omission** and that **the sum of daily accumulations = the
+  corresponding hourly accumulation**; read-only, no daily products are generated.
 
-## 4. 风/光潜力：先按小时计算，再汇总到日尺度
+## 4. Wind/Solar Potential: Compute Hourly First, Then Aggregate to the Daily Scale
 
-> 更严谨的公式、参数、来源与"进入计算前须确认的假设清单"见
-> `docs/potential_calc_scheme.md`；本节仅保留要点。
+> The more rigorous formulas, parameters, sources, and the "list of assumptions to
+> confirm before entering calculation" are in `docs/potential_calc_scheme.md`; this
+> section keeps only the essentials.
 
-沿用旧项目的公式作为起点（可复用为参考），但**在小时尺度**计算：
+The old project's formulas are retained as a starting point (reusable as reference),
+but computed **at the hourly scale**:
 
-- **风速**（小时）：`V100 = √(u100² + v100²)`（先算小时合成，**不要**先分别对
-  u、v 做日平均再合成——那样系统性偏低）。若用 10 m 风外推，采用旧项目的
-  经验粗糙度指数 `α = 0.37 − 0.0881·ln(v10)`，`V100 = v10·(100/10)^α`。
-- **风功率密度**（小时）：`WPD = 0.5 · ρ · V100³`，`ρ = 1.225 kg m⁻³`
-  （与旧项目一致）。可先按小时算 `V³` 再日平均（风的立方不可用日平均风速立方替代）。
-- **PV 潜力**（小时）：
-  - 组件温 `T_cell = 4.3 + 0.943·T_a + 0.028·GHI − 1.528·v10`（℃，旧项目系数，
-    需 t2m 与 10 m 风）。
-  - 性能比 `PR = 1 + γ·(T_cell − 25)`，`γ = −0.005 ℃⁻¹`，STC 温度 25 ℃。
-  - `PVpot = PR · GHI`（W m⁻²，即小时 PV 潜力）。
-  - 先按小时算 `PVpot`，再日平均（或按日照时段平均）。
-- **日尺度汇总**：对每个格点-日，把小时 `WPD`、`PVpot` 汇总为日值（日平均或日照
-  时段平均，口径需与后文一致性假设一起确定），得到可与“该日是否为热浪日”对齐的
-  逐日风/光潜力序列。
+- **Wind speed** (hourly): `V100 = √(u100² + v100²)` (compute the hourly composition
+  first; do **not** first take daily means of u and v separately and then compose — that
+  is systematically too low). If extrapolating from 10 m wind, use the old project's
+  empirical roughness exponent `α = 0.37 − 0.0881·ln(v10)`,
+  `V100 = v10·(100/10)^α`.
+- **Wind power density** (hourly): `WPD = 0.5 · ρ · V100³`, `ρ = 1.225 kg m⁻³`
+  (consistent with the old project). `V³` may be computed hourly first and then
+  daily-averaged (the cube of wind must not be replaced by the cube of the daily-mean
+  wind speed).
+- **PV potential** (hourly):
+  - Cell temperature `T_cell = 4.3 + 0.943·T_a + 0.028·GHI − 1.528·v10` (℃, old-project
+    coefficients, requires t2m and 10 m wind).
+  - Performance ratio `PR = 1 + γ·(T_cell − 25)`, `γ = −0.005 ℃⁻¹`, STC temperature
+    25 ℃.
+  - `PVpot = PR · GHI` (W m⁻², i.e. the hourly PV potential).
+  - Compute `PVpot` hourly first, then take the daily mean (or the mean over sunlit
+    hours).
+- **Daily-scale aggregation**: for each grid cell-day, aggregate the hourly `WPD` and
+  `PVpot` into daily values (daily mean or mean over sunlit hours; the convention must
+  be fixed together with the consistency assumptions below), obtaining a per-day
+  wind/solar potential series that can be aligned with "whether that day is a heatwave
+  day".
 
-## 5. 与 CN05.1 观测日对齐
+## 5. Alignment with the CN05.1 Observation Day
 
-- **时间对齐**：ERA5 为 UTC 小时；CN05.1 逐日为日历/观测日。日界核实结论见
-  `docs/heatwave_method_v2.md` §7（台站数据为北京时 20 时日界、值归属结束日，但
-  CN05.1 自身未明说、待与数据方确认）；确认后按本文件 §3.4 的窗口取小时。
-  - 例如日 Tmax 对齐：按确认的窗口取 24 小时 `t2m` 的最大值，与 CN05.1 Tmax 比对
-    校验（ERA5 小时最大值是连续最大值的近似）。
-- **空间对齐**：试点区直接用 ERA5 0.25° 网格中与 CN05.1 0.25° 格点**最邻近**的
-  格点（或做保守重采样）；**不对 CN05.1 做任何插值/补缺**。
+- **Time alignment**: ERA5 is in UTC hours; CN05.1 daily data are calendar/observation
+  days. For the day-boundary verification conclusion see `docs/heatwave_method_v2.md`
+  §7 (station data use a Beijing-time 20:00 day boundary with values attributed to the
+  ending day, but CN05.1 itself does not state this explicitly and awaits confirmation
+  with the data provider); after confirmation, take the hours per the windows in §3.4
+  of this file.
+  - For example, daily Tmax alignment: take the maximum of 24 hours of `t2m` per the
+    confirmed window and compare with CN05.1 Tmax (the ERA5 hourly maximum is an
+    approximation of the continuous maximum).
+- **Spatial alignment**: in the pilot area, directly use the ERA5 0.25° grid cells that
+  are **nearest neighbours** of the CN05.1 0.25° grid cells (or do conservative
+  resampling); **no interpolation or gap-filling is applied to CN05.1**.
 
-## 6. 风光组合：统一容量因子/装机假设，不直接相加
+## 6. Wind/Solar Combination: Unify Capacity-Factor / Installed-Capacity Assumptions, Do Not Add Directly
 
-> 联合输出的统一口径（`CF_mix = a·CF_wind + (1−a)·CF_pv`，装机比 `a` 显式声明、
-> 绝不 `WPD + PVpot`）见 `docs/potential_calc_scheme.md` §0/§4。
+> The unified convention for the joint output (`CF_mix = a·CF_wind + (1−a)·CF_pv`,
+> with the installed-capacity ratio `a` declared explicitly, never `WPD + PVpot`) is in
+> `docs/potential_calc_scheme.md` §0/§4.
 
-- `WPD`（W m⁻²）与 `PVpot`（W m⁻²）物理含义不同、量纲虽同为 W m⁻² 但不可直接
-  相加，也不代表可并网电量。
-- 组合方法（待选，需在进入计算前明确其一）：
-  1. **统一容量因子**：`CF_wind = P(V100)/P_rated`（NREL 5-MW 功率曲线，见
-     `docs/potential_calc_scheme.md` §2）、`CF_pv = PVpot / G_ref`
-     （`G_ref = 1000 W m⁻²`），再按假定的风光装机比加权组合
-     `CF_mix = a·CF_wind + (1−a)·CF_pv`；
-  2. 或按选定的**装机假设**（如风光装机容量各占 50%，或指定 MW 值）换算成
-     可并网电量再求和。
-- 无论选哪种，都必须**显式声明**装机比/额定参数假设；**不**把原始 `WPD` 与
-  `PVpot` 直接相加。
+- `WPD` (W m⁻²) and `PVpot` (W m⁻²) have different physical meanings; although both
+  have the dimensions W m⁻², they cannot be added directly, nor do they represent
+  grid-deliverable electricity.
+- Combination methods (to be selected; one must be fixed before entering calculation):
+  1. **Unified capacity factor**: `CF_wind = P(V100)/P_rated` (NREL 5-MW power curve,
+     see `docs/potential_calc_scheme.md` §2), `CF_pv = PVpot / G_ref`
+     (`G_ref = 1000 W m⁻²`), then weight and combine per the assumed wind/solar
+     installed-capacity ratio `CF_mix = a·CF_wind + (1−a)·CF_pv`;
+  2. or convert to grid-deliverable electricity per a chosen **installed-capacity
+     assumption** (e.g. wind and solar installed capacity 50% each, or specified MW
+     values) and then sum.
+- Whichever is chosen, the installed-capacity ratio / rated-parameter assumptions must
+  be **declared explicitly**; the raw `WPD` and `PVpot` are **not** added directly.
 
-## 7. 本轮边界
+## 7. Boundaries of This Round
 
-- **不下载** ERA5、**不运行**能源计算。
-- 不补缺测、不额外插值。
-- 数据到位后，新结果写入新的独立目录（沿用 `results_merge/` 的同级新目录），
-  不覆盖 `results/`、`results_fixed/`、`results_merge/` 与原始数据。
+- **Do not download** ERA5 and **do not run** energy calculations.
+- No gap-filling of missing values and no additional interpolation.
+- Once data are in place, new results are written to a new independent directory (a new
+  sibling directory of `results_merge/`), without overwriting `results/`,
+  `results_fixed/`, `results_merge/`, or the original data.

@@ -189,46 +189,53 @@ def main():
 
     # ---- brief note ----
     L = []
-    L.append("# 示例格点热浪过程案例说明（单点、单事件描述，不代表整个区域）\n\n")
-    L.append("## 示例格点（31.75°N、114.50°E）\n\n")
-    L.append("- 术语：本文称该格点为**示例格点**，不称“代表格点”。\n")
-    L.append("- 来源：坐标沿用自热浪合并试点（`scripts/hw_merge_pilot.py` 与 "
-             "`scripts/hw_merge_plot.py` 中写死为“phase-1 representative cell”）。其最初选择依据 "
-             "来自第一阶段诊断脚本 `scripts/eval_merge.py`：在 30–33°N、112–121°E 小区域内**自动筛选** "
-             "2022 年热浪事件日最多（≥3 天连续超阈值的总日数最大）的格点，结果即 114.50°E、31.75°N"
-             "（52 个热浪事件日，为该区域唯一最大值）。\n")
-    L.append("- 定位：仅用于流程与事件过程展示，**未经区域代表性验证**，不代表整个区域。\n\n")
-    L.append("## 事件（来自现有事件表 `hw_2022_events_merged.csv`，未重新识别）\n\n")
-    L.append(f"- 格点：{EX_LON}°E, {EX_LAT}°N\n")
-    L.append(f"- 过程：{fmt_date(start)} .. {fmt_date(end)} "
-             f"（跨度 {num['span']} 天；{num['n_seg']} 段合并，"
-             f"{num['hw_days']} 个热浪日 + {num['gap_days']} 个间隔日；"
-             f"mean_excess = {num['excess']:.2f} °C）\n")
-    L.append(f"- 间隔日（label 4）：{num['gap_date']}\n\n")
-    L.append(f"## 图\n\n`{os.path.basename(fig_png)}` — 6 个分面（各自独立纵轴，无同轴叠图）："
-             "Tmax+P90、GHI 日累计、Faiman PV 日累计、100m 风速日均、WPD 日均、"
-             "模型温度修正（PVpot−GHI）。红色底纹=热浪日，灰色底纹=间隔日。\n\n")
-    L.append("## 描述性观察（单点、单事件，不做显著性检验，不做因果归因）\n\n")
-    L.append(f"1. **温度**：过程内 Tmax 普遍高于 P90，峰值 "
-             f"{num['tmax_peak']:.1f} °C（{num['tmax_peak_date']}）；"
-             f"P90 日历日阈值在过程内约 {num['p90_range'][0]:.1f}–{num['p90_range'][1]:.1f} °C。\n")
-    L.append(f"2. **PV 偏高与辐照偏高相伴**：PV 日累计 ≈ GHI × pr（pr≈1），两者几乎同步。"
-             f"过程内 GHI 日累计均值 {num['ghi_hw_mean']:.2f} kWh/m² "
-             f"（前后普通日 {num['ghi_ctx_mean']:.2f}），"
-             f"PV 日累计均值 {num['pv_hw_mean']:.2f} kWh/m² "
-             f"（前后 {num['pv_ctx_mean']:.2f}）；"
-             f"GHI 峰值日 {num['ghi_peak_date']} 与 PV 峰值日 {num['pv_peak_date']} "
-             f"{'一致' if num['ghi_peak_date']==num['pv_peak_date'] else '不一致'}。\n")
-    L.append(f"3. **风速与 WPD 一致变化**：WPD=0.5·ρ·V³ 是风速的单调函数，过程内两者同升降，"
-             f"且 WPD 变化被三次方放大。过程内风速日均约 "
-             f"{num['w100_range'][0]:.1f}–{num['w100_range'][1]:.1f} m/s，"
-             f"WPD 日均约 {num['wpd_range'][0]:.0f}–{num['wpd_range'][1]:.0f} W/m²。\n")
-    L.append(f"4. **模型温度修正**（PVpot−GHI，相对 25 °C 参考，同一小时区间累计）："
-             f"过程内为负（热环境下 pr<1），日均约 {num['corr_hw_mean']:.2f} kWh/m² "
-             f"（最负 {num['corr_hw_min']:.2f}）。这仅是模型内相对 25 °C 参考的温度修正项，"
-             "不是热浪因果效应，也不直接称为热浪损失。\n\n")
-    L.append("注：日界 B = 北京时间前日 20 时—当日 20 时（暂定方案）；"
-             "CN05.1 日界尚未确认；原数据与全部已有结果未改动。\n")
+    L.append("# Example-cell heatwave-process case note (single point, single event; does not represent the whole region)\n\n")
+    L.append("## Example cell (31.75°N, 114.50°E)\n\n")
+    L.append("- Terminology: this note calls the cell an **example cell**, not a \"representative cell\".\n")
+    L.append("- Origin: the coordinates are carried over from the heatwave-merging pilot "
+             "(`scripts/hw_merge_pilot.py` and `scripts/hw_merge_plot.py`, where they are hard-coded as "
+             "\"phase-1 representative cell\"). The original selection criterion comes from the phase-1 "
+             "diagnostic script `scripts/eval_merge.py`: within the small 30–33°N / 112–121°E region it "
+             "**automatically selects** the grid cell with the most 2022 heatwave-event days (the largest total "
+             "days of ≥3-day consecutive exceedance), which is 114.50°E, 31.75°N "
+             "(52 heatwave-event days, the unique regional maximum).\n")
+    L.append("- Purpose: only for pipeline and event-process display, **not verified for regional "
+             "representativeness**, and does not represent the whole region.\n\n")
+    L.append("## Event (from the existing event table `hw_2022_events_merged.csv`; not re-identified)\n\n")
+    L.append(f"- Cell: {EX_LON}°E, {EX_LAT}°N\n")
+    L.append(f"- Process: {fmt_date(start)} .. {fmt_date(end)} "
+             f"(span {num['span']} days; {num['n_seg']} segments merged, "
+             f"{num['hw_days']} heatwave days + {num['gap_days']} gap days; "
+             f"mean_excess = {num['excess']:.2f} °C)\n")
+    L.append(f"- Gap day(s) (label 4): {num['gap_date']}\n\n")
+    L.append(f"## Figure\n\n`{os.path.basename(fig_png)}` — 6 panels (each with an independent y-axis, "
+             "no shared-axis overplot): "
+             "Tmax+P90, GHI daily total, Faiman PV daily total, 100 m wind-speed daily mean, WPD daily mean, "
+             "model temperature correction (PVpot−GHI). Red shading = heatwave day, grey shading = gap day.\n\n")
+    L.append("## Descriptive observations (single point, single event; no significance test, no causal attribution)\n\n")
+    L.append(f"1. **Temperature**: within the process Tmax is generally above P90, peaking at "
+             f"{num['tmax_peak']:.1f} °C ({num['tmax_peak_date']}); "
+             f"the P90 calendar-day threshold within the process is about {num['p90_range'][0]:.1f}–{num['p90_range'][1]:.1f} °C.\n")
+    L.append(f"2. **High PV accompanies high irradiance**: PV daily total ≈ GHI × pr (pr≈1), and the two are "
+             f"almost synchronous. Within the process, the mean GHI daily total is {num['ghi_hw_mean']:.2f} kWh/m² "
+             f"(ordinary days before/after {num['ghi_ctx_mean']:.2f}), "
+             f"and the mean PV daily total is {num['pv_hw_mean']:.2f} kWh/m² "
+             f"(before/after {num['pv_ctx_mean']:.2f}); "
+             f"the GHI peak day {num['ghi_peak_date']} and the PV peak day {num['pv_peak_date']} "
+             f"{'coincide' if num['ghi_peak_date']==num['pv_peak_date'] else 'do not coincide'}.\n")
+    L.append(f"3. **Wind speed and WPD change together**: WPD=0.5·ρ·V³ is a monotonic function of wind speed, so "
+             f"within the process the two rise and fall together, and WPD changes are amplified by the cubic term. "
+             f"Within the process, the daily-mean wind speed is about "
+             f"{num['w100_range'][0]:.1f}–{num['w100_range'][1]:.1f} m/s, "
+             f"and the daily-mean WPD is about {num['wpd_range'][0]:.0f}–{num['wpd_range'][1]:.0f} W/m².\n")
+    L.append(f"4. **Model temperature correction** (PVpot−GHI, relative to the 25 °C reference, accumulated over "
+             f"the same hourly interval): negative within the process (pr<1 under hot conditions), with a daily "
+             f"mean of about {num['corr_hw_mean']:.2f} kWh/m² "
+             f"(most negative {num['corr_hw_min']:.2f}). This is only the model's temperature-correction term "
+             "relative to the 25 °C reference, not a heatwave causal effect, and is not directly called a "
+             "heatwave loss.\n\n")
+    L.append("Note: day boundary B = Beijing time previous-day 20:00 to same-day 20:00 (provisional scheme); "
+             "the CN05.1 day boundary is not yet confirmed; the raw data and all existing results are unchanged.\n")
 
     note_md = os.path.join(OUT, "note_hw_2022_case_114.5E_31.75N_20220802_20220822.md")
     with open(note_md, "w", encoding="utf-8") as f:

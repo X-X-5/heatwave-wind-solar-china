@@ -1,168 +1,215 @@
-# 风光潜力计算方法说明（方案，尚未运行）
+# Wind/Solar Potential Calculation Method (Scheme, Not Yet Run)
 
-本文档明确**风/光潜力**的候选公式、参数与来源，供进入计算前核对。**本轮不运行
-任何能源计算**；本文档只把"资源量指标"与"容量因子"的口径区分清楚，并给出组合
-输出的统一假设，避免把量纲/含义不同的量直接相加。
+This document specifies the candidate formulas, parameters, and sources for the
+**wind/solar potential**, for verification before entering calculation. **This round
+does not run any energy calculation**; this document only distinguishes clearly between
+the "resource-quantity metric" and "capacity factor" conventions, and gives the unified
+assumptions for the combined output, to avoid adding quantities of different
+dimensions/meanings directly.
 
 ---
 
-## 0. 四个概念先分清（最关键的区分）
+## 0. Four Concepts to Distinguish First (the most critical distinction)
 
-| 名称 | 定义 | 量纲/单位 | 是否可直接相加 |
+| Name | Definition | Dimensions/units | Directly addable? |
 |---|---|---|---|
-| **WPD**（风功率密度） | 单位风轮扫风面积上的风能通量 `0.5·ρ·V³` | W m⁻²（资源量） | 否 |
-| **风容量因子 CF_wind** | `P(V100)/P_rated`，用**有来源的风机功率曲线**逐小时积分 | 无量纲 0–1 | 与 PV CF 同口径后**可加权** |
-| **PV 潜力 PVpot** | 组件单位面积、考虑温度折损后的可输出功率 `PR·GHI` | W m⁻²（仍含 GHI 因素） | 否（依赖辐照，非并网电量） |
-| **PV 容量因子 CF_pv** | `PVpot / G_ref`（`G_ref = 1000 W m⁻²` STC 辐照） | 无量纲 0–1 | 与风 CF 同口径后**可加权** |
+| **WPD** (wind power density) | Wind-energy flux per unit rotor swept area `0.5·ρ·V³` | W m⁻² (resource quantity) | No |
+| **Wind capacity factor CF_wind** | `P(V100)/P_rated`, integrated hourly using a **sourced wind-turbine power curve** | dimensionless 0–1 | **Weightable** once brought to the same convention as the PV CF |
+| **PV potential PVpot** | Output power per unit module area after accounting for the temperature loss `PR·GHI` | W m⁻² (still contains the GHI factor) | No (depends on irradiance, not grid-deliverable electricity) |
+| **PV capacity factor CF_pv** | `PVpot / G_ref` (`G_ref = 1000 W m⁻²` STC irradiance) | dimensionless 0–1 | **Weightable** once brought to the same convention as the wind CF |
 
-> 结论：**WPD 是"风资源"，PVpot 是"含性能比的光资源"**，两者都不是电量，也
-> 量纲/基准不同，**绝不直接相加**。只有把二者都归一化为**无量纲容量因子**，再
-> 乘以**显式声明的装机比**，才能做风光联合输出。
+> Conclusion: **WPD is a "wind resource", and PVpot is a "solar resource including the
+> performance ratio"**; neither is electricity, and their dimensions/bases differ, so
+> they are **never added directly**. Only when both are normalized into **dimensionless
+> capacity factors** and then multiplied by an **explicitly declared installed-capacity
+> ratio** can a joint wind/solar output be made.
 
 ---
 
-## 1. 风速与风功率密度（小时）
+## 1. Wind Speed and Wind Power Density (hourly)
 
-- 小时轮毂风速（首选直接 100 m）：
+- Hourly hub-height wind speed (prefer directly using 100 m):
   `V100 = √(u100² + v100²)`
-- 备选（10 m 外推到 100 m，经验幂律，旧项目系数）：
-  `α = 0.37 − 0.0881 · ln(v10)`（`v10 = √(u10²+v10²)`，m s⁻¹）
+- Alternative (10 m extrapolated to 100 m, empirical power law, old-project
+  coefficients):
+  `α = 0.37 − 0.0881 · ln(v10)` (`v10 = √(u10²+v10²)`, m s⁻¹)
   `V100 = v10 · (100/10)^α`
-  - 幂律来源：风廓线经验指数（Hellman/幂律，Justus & Mikhail 1976 类）；上式为
-    旧项目对经验粗糙度指数的线性化，**系数来源待核对**，仅作参考。
-- 小时风功率密度：
-  `WPD = 0.5 · ρ · V100³`，`ρ = 1.225 kg m⁻³`（15 ℃ 海平面标准空气密度，
-  IEC 61400-12-1）。
+  - Power-law source: empirical wind-profile exponent (Hellmann/power law, of the
+    Justus & Mikhail 1976 type); the formula above is the old project's linearization
+    of the empirical roughness exponent, **the coefficient source is to be verified**,
+    for reference only.
+- Hourly wind power density:
+  `WPD = 0.5 · ρ · V100³`, `ρ = 1.225 kg m⁻³` (standard air density at 15 ℃ sea
+  level, IEC 61400-12-1).
 
-**计算顺序约束**：先按**小时**算 `V100`（先合成 u/v 再求模），再按小时算 `V100³`，
-最后才日/月平均。**不得**先对 u、v 分别日平均再合成（系统性偏低），**不得**用
-日平均风速的立方代替小时立方的平均。
+**Calculation-order constraint**: compute `V100` **hourly** first (compose u/v first,
+then take the magnitude), then compute `V100³` hourly, and only then take daily/monthly
+means. **Do not** first take daily means of u and v separately and then compose
+(systematically too low), and **do not** replace the mean of the hourly cubes with the
+cube of the daily-mean wind speed.
 
 ---
 
-## 2. 风容量因子（用风机功率曲线，弃用 WPD/WPD_rated 比值）
+## 2. Wind Capacity Factor (use the turbine power curve; drop the WPD/WPD_rated ratio)
 
 `CF_wind = Σ_h P(V_h) / (P_rated · N_h)`
 
-逐小时用**风机功率曲线** `P(V)` 把轮毂风速映射到功率，再对功率求平均、除以额定
-功率得容量因子。**不再用** `WPD / WPD_rated` 这类"立方—截平"比值近似。
+Hour by hour, map the hub-height wind speed to power using the **turbine power curve**
+`P(V)`, then average the power and divide by the rated power to get the capacity
+factor. **No longer use** the `WPD / WPD_rated` "cubic–capped" ratio approximation.
 
-- **默认机型：NREL 5-MW 参考风机**（Jonkman et al. 2009, NREL/TP-500-38060）——
-  三叶片上风向、变桨变速（变速 + 变桨到顺桨）控制。
-  - 参数：**额定 5 MW、额定风速 11.4 m/s、切入 3 m/s、切出 25 m/s、风轮直径
-    126 m、轮毂 90 m**；功率曲线见报告 §9（FAST 生成，公开可引）。
-  - **轮毂高度差**：ERA5 给的是 100 m 风，本机轮毂 90 m，须先用幂律下推
-    `V90 = V100 · (90/100)^α`（α 见 §1）再代入曲线，并**显式记录**此假设。
-  - **切入/额定/切出规则**：`V < 3` 或 `V ≥ 25` → `P = 0`；`3 ≤ V < 11.4` →
-    按曲线表插值（变速最优控制区，非纯立方）；`11.4 ≤ V < 25` → `P = 5 MW`。
-- **替换机型**：若改用国产机型（Goldwind/Envision 等），其功率曲线须有**可引用的
-  公开来源**，并同样声明切入/额定/切出风速与轮毂高度；否则仍用 NREL 5-MW。
-- **WPD 保留为独立资源指标**（§1），不参与容量因子，也**不与 PVpot 直接相加**。
-
----
-
-## 3. PV 潜力与 PV 容量因子（小时）
-
-- 小时辐照度：`GHI = ssrd / 3600`（W m⁻²，见 `docs/era5_data_plan.md` §3，
-  ERA5 再分析逐小时为"时末 1 小时累计"，直接 ÷3600）。
-- 组件工作温度（旧项目**经验式**，多元线性回归，**不是**标准 Faiman 模型）：
-  `T_cell = 4.3 + 0.943 · T_a + 0.028 · GHI − 1.528 · wind10`（℃）
-  - `T_a = t2m − 273.15`（℃），`wind10 = √(u10²+v10²)`（m s⁻¹）。
-  - **性质**：该式含截距 4.3 与斜率 ≠1 的 `T_a` 项（对某数据集的线性回归），
-    `0.028` 项量级 ≈ Ross 系数、`wind10` 项为 Faiman 型的风冷项；**不得写作
-    "标准 Faiman"**，其系数来源（旧项目 `04_energy_metrics` 内值）须在正式使用
-    前核对到具体文献。
-  - **来源核对结论（2026-10，已更正）**：系数 4.3 / 0.943 / 0.028 / −1.528 在旧项目
-    `scripts/04_energy_metrics/compute_energy_metrics_pilot_v2.py` L125–128 与
-    `audit_energy_metrics_production.py` L80–83 中为**裸常量、未注明出处**，但**仓库无引用
-    不等于文献无来源**：该组系数见于 **Jerez et al. (2015, Nat. Commun. 6:10014)**，其
-    引用 **Chenni et al. (2007)** 的线性组件温模型（另有文献溯源至 TamizhMani et al. 2003 /
-    Tang 2003）。该式输入为 2 m 气温、水平面 GHI（`RSDS`）、≈10 m 风速，与 ERA5
-    `t2m`/`ssrd→GHI`/`V10` 一一对应；但**经验系数的区域适用性仍是假设**。主方案**暂定
-    Faiman（试算）**，线性式保留作敏感性对照（两模型差异见 `results_hourly/REPORT.md`
-    §5 敏感性比较），**不再切换公式、不扩展模型**；Faiman (2008) 因需 POA 与标定高度风、
-    须额外转置/风廓线假设。
-  - **适用条件（须明确）**：`GHI` 为**水平面**辐照（非斜面 POA）；风速取 **10 m**
-    高度 `wind10`；适用于**自由架设/开放式支架 c-Si 组件**的日间工作温度。
-  - **可引用的标准替代**（进入正式计算时二选一并声明）：
-    - **Faiman (2008, doi:10.1002/pip.813)**：`T_cell = T_a + GHI / (U0 + U1·v)`，
-      `U0 = 25.0 W m⁻² K⁻¹`、`U1 = 6.84 W m⁻² K⁻¹ (m/s)⁻¹`（开放支架默认，
-      pvlib / IEC 61853 采用）；
-    - **Ross**：`T_cell = T_a + (NOCT − 20)/800 · GHI`，系数 `k = (NOCT−20)/800`
-      随安装方式 ≈ 0.02–0.056（自由架设 ≈ 0.021）。
-- 性能比（温度折损，STC 基准）：
-  `PR = 1 + γ · (T_cell − 25)`，`γ = −0.005 ℃⁻¹`（c-Si 典型功率温度系数 ≈
-  −0.5 %/℃；PVsyst 常用，Evans 1981 类），STC 温度 25 ℃。
-- PV 潜力：
-  `PVpot = PR · GHI`（W m⁻²，含性能比折损的"可用辐照功率密度"）。
-- PV 容量因子（**简化**）：
-  `CF_pv = PVpot / G_ref`，`G_ref = 1000 W m⁻²`（STC 辐照）。
-  等价：`CF_pv = mean(PVpot) / 1000`（对日均/月均 PVpot）。
-- **夜间/暗时处理**：先对 ssrd 做 `max(0, ssrd)` 截断（物理上无负值）；`GHI ≤ 0`
-  时 `PVpot = 0` 且 `PR` 无物理意义，PV 的日/月指标**只在 `GHI > 0` 的日照时次**
-  上统计。
-- **指标性质（必须说清）**：`PVpot = PR·GHI` 是**简化潜力指标**（水平面、无倾角/
-  朝向、无逆变器/线路/污损/衰减等系统损失），**不是**系统容量因子；`CF_pv` 只是
-  "性能比加权"的简化容量因子。要称系统 CF，须再引入 POA 辐照、逆变器效率、
-  DC/AC 比与损耗链。
-
-**计算顺序约束**：先按小时算 `GHI`、`T_cell`、`PR`、`PVpot`，再日/月平均；不得
-用日平均 `GHI` 反推日 `T_cell`（非线性）。
+- **Default turbine: NREL 5-MW reference turbine** (Jonkman et al. 2009,
+  NREL/TP-500-38060) — three-blade upwind, variable-pitch variable-speed (variable
+  speed + pitching to feather) control.
+  - Parameters: **rated 5 MW, rated wind speed 11.4 m/s, cut-in 3 m/s, cut-out 25 m/s,
+    rotor diameter 126 m, hub 90 m**; power curve in report §9 (FAST-generated,
+    publicly citable).
+  - **Hub-height difference**: ERA5 provides 100 m wind while this turbine's hub is
+    90 m, so it must first be pushed down by the power law `V90 = V100 · (90/100)^α`
+    (α in §1) before entering the curve, and this assumption must be **recorded
+    explicitly**.
+  - **Cut-in/rated/cut-out rules**: `V < 3` or `V ≥ 25` → `P = 0`; `3 ≤ V < 11.4` →
+    interpolate from the curve table (variable-speed optimal-control region, not a pure
+    cubic); `11.4 ≤ V < 25` → `P = 5 MW`.
+- **Replacement turbine**: if a domestic turbine is used instead (Goldwind/Envision,
+  etc.), its power curve must have a **citable public source** and likewise declare the
+  cut-in/rated/cut-out wind speeds and hub height; otherwise the NREL 5-MW remains in
+  use.
+- **WPD is kept as an independent resource metric** (§1); it does not enter the
+  capacity factor and is **not added directly to PVpot**.
 
 ---
 
-## 4. 风光联合输出：统一容量因子 + 装机比，绝不直接相加
+## 3. PV Potential and PV Capacity Factor (hourly)
 
-给定风光装机比 `a`（风电装机容量占比，`a ∈ [0,1]`，**须显式声明**，如 0.5/0.5 或
-一组情景 0.3/0.5/0.7）：
+- Hourly irradiance: `GHI = ssrd / 3600` (W m⁻², see `docs/era5_data_plan.md` §3, ERA5
+  reanalysis hourly is an "end-of-hour 1-hour accumulation", divide directly by 3600).
+- Module operating temperature (old project's **empirical formula**, multiple linear
+  regression, **not** the standard Faiman model):
+  `T_cell = 4.3 + 0.943 · T_a + 0.028 · GHI − 1.528 · wind10` (℃)
+  - `T_a = t2m − 273.15` (℃), `wind10 = √(u10²+v10²)` (m s⁻¹).
+  - **Nature**: this formula contains an intercept 4.3 and a `T_a` term with slope ≠ 1
+    (a linear regression on some dataset); the `0.028` term is of the order of the Ross
+    coefficient and the `wind10` term is a Faiman-type wind-cooling term; it must **not
+    be written as "standard Faiman"**, and its coefficient source (values inside the
+    old project's `04_energy_metrics`) must be verified against a specific reference
+    before formal use.
+  - **Source-verification conclusion (2026-10, corrected)**: the coefficients
+    4.3 / 0.943 / 0.028 / −1.528 appear in the old project's
+    `scripts/04_energy_metrics/compute_energy_metrics_pilot_v2.py` L125–128 and
+    `audit_energy_metrics_production.py` L80–83 as **bare constants with no stated
+    origin**, but **no citation in the repository does not mean no source in the
+    literature**: this coefficient set appears in **Jerez et al. (2015, Nat. Commun.
+    6:10014)**, which cites the linear module-temperature model of **Chenni et al.
+    (2007)** (with other literature tracing it to TamizhMani et al. 2003 / Tang 2003).
+    The formula's inputs are 2 m temperature, horizontal-plane GHI (`RSDS`), and
+    ≈10 m wind speed, matching ERA5 `t2m`/`ssrd→GHI`/`V10` one-to-one; but **the
+    regional applicability of the empirical coefficients remains an assumption**. The
+    primary scheme **tentatively uses Faiman (trial)** and keeps the linear formula as
+    a sensitivity comparison (see `results_hourly/REPORT.md` §5 sensitivity comparison
+    for the difference between the two models), **no further switching of formulas, no
+    model extension**; Faiman (2008) needs POA and wind at a calibration height,
+    requiring additional transposition/wind-profile assumptions.
+  - **Applicability conditions (must be explicit)**: `GHI` is **horizontal-plane**
+    irradiance (not tilted-plane POA); wind speed is taken at **10 m** height `wind10`;
+    applies to the daytime operating temperature of **free-mounted / open-rack c-Si
+    modules**.
+  - **Citable standard alternatives** (choose one and declare it when entering formal
+    calculation):
+    - **Faiman (2008, doi:10.1002/pip.813)**: `T_cell = T_a + GHI / (U0 + U1·v)`,
+      `U0 = 25.0 W m⁻² K⁻¹`, `U1 = 6.84 W m⁻² K⁻¹ (m/s)⁻¹` (open-rack default,
+      adopted by pvlib / IEC 61853);
+    - **Ross**: `T_cell = T_a + (NOCT − 20)/800 · GHI`, with coefficient
+      `k = (NOCT−20)/800` ≈ 0.02–0.056 depending on mounting (free-mounted ≈ 0.021).
+- Performance ratio (temperature loss, STC reference):
+  `PR = 1 + γ · (T_cell − 25)`, `γ = −0.005 ℃⁻¹` (typical c-Si power temperature
+  coefficient ≈ −0.5 %/℃; commonly used in PVsyst, Evans 1981 type), STC temperature
+  25 ℃.
+- PV potential:
+  `PVpot = PR · GHI` (W m⁻², the "usable irradiance power density" including the
+  performance-ratio loss).
+- PV capacity factor (**simplified**):
+  `CF_pv = PVpot / G_ref`, `G_ref = 1000 W m⁻²` (STC irradiance).
+  Equivalently: `CF_pv = mean(PVpot) / 1000` (for daily-mean/monthly-mean PVpot).
+- **Night/dark handling**: first clip ssrd with `max(0, ssrd)` (physically no negative
+  values); when `GHI ≤ 0`, `PVpot = 0` and `PR` has no physical meaning, and the PV
+  daily/monthly metrics are computed **only over the sunlit time steps with `GHI > 0`**.
+- **Nature of the metric (must be stated clearly)**: `PVpot = PR·GHI` is a **simplified
+  potential metric** (horizontal plane, no tilt/orientation, no
+  inverter/wiring/soiling/degradation or other system losses), **not** a system
+  capacity factor; `CF_pv` is only a "performance-ratio-weighted" simplified capacity
+  factor. To call it a system CF, POA irradiance, inverter efficiency, DC/AC ratio, and
+  the loss chain must be introduced.
 
-`CF_mix = a · CF_wind + (1 − a) · CF_pv`（无量纲 0–1）
-
-- 这是"加权容量因子"，可直接与热浪日做逐日对齐，作为"风光联合出力水平"的代理。
-- 若需**电量**：`E_mix = CF_mix · P_total_installed · T`，`P_total_installed` 为
-  风光合计装机（MW，假设值）。
-- **禁止**：`WPD + PVpot`、`CF_wind + CF_pv`（不加权）、或任何未声明基准的直接
-  相加。
+**Calculation-order constraint**: compute `GHI`, `T_cell`, `PR`, `PVpot` hourly first,
+then take daily/monthly means; do not back out the daily `T_cell` from daily-mean `GHI`
+(non-linear).
 
 ---
 
-## 5. 逐日对齐口径
+## 4. Joint Wind/Solar Output: Unified Capacity Factor + Installed-Capacity Ratio, Never Added Directly
 
-- 所有小时量先算后日汇总（日平均或日照时段平均，口径须在计算脚本中统一并记录）。
-- 日值按 `docs/heatwave_method_v2.md` §7 / `docs/era5_data_plan.md` §5 的观测日
-  窗口对齐到 CN05.1 日，用于"热浪日 vs 非热浪日"的风/光潜力对比。
+Given the wind/solar installed-capacity ratio `a` (the wind share of installed
+capacity, `a ∈ [0,1]`, **must be declared explicitly**, e.g. 0.5/0.5 or a scenario set
+0.3/0.5/0.7):
+
+`CF_mix = a · CF_wind + (1 − a) · CF_pv` (dimensionless 0–1)
+
+- This is a "weighted capacity factor" that can be aligned day by day with heatwave
+  days as a proxy for the "joint wind/solar output level".
+- If **electricity** is needed: `E_mix = CF_mix · P_total_installed · T`, with
+  `P_total_installed` the combined wind/solar installed capacity (MW, assumed value).
+- **Forbidden**: `WPD + PVpot`, `CF_wind + CF_pv` (unweighted), or any direct addition
+  without a declared basis.
 
 ---
 
-## 6. 参数汇总表
+## 5. Daily Alignment Convention
 
-| 符号 | 值 | 来源/依据 |
+- All hourly quantities are computed first and then aggregated to daily values (daily
+  mean or mean over sunlit hours; the convention must be unified and recorded in the
+  calculation script).
+- Daily values are aligned to CN05.1 days per the observation-day windows in
+  `docs/heatwave_method_v2.md` §7 / `docs/era5_data_plan.md` §5, for the "heatwave day
+  vs non-heatwave day" wind/solar potential comparison.
+
+---
+
+## 6. Parameter Summary Table
+
+| Symbol | Value | Source/basis |
 |---|---|---|
-| `ρ` | 1.225 kg m⁻³ | IEC 61400-12-1 标准空气密度 |
-| `α` | `0.37 − 0.0881·ln(v10)` | 旧项目经验式（幂律，来源待核对） |
-| 轮毂高度 | 100 m（直接 `u100/v100`） | ERA5 100 m 风场 |
-| `G_ref` | 1000 W m⁻² | STC（IEC 60904） |
-| `γ` | −0.005 ℃⁻¹ | 晶硅组件典型功率温度系数（PVsyst/Evans 1981） |
-| `T_cell` 系数 | 4.3 / 0.943 / 0.028 / −1.528 | 旧项目经验式（线性回归，**非 Faiman**；来源待核对） |
-| Faiman `U0, U1` | 25.0 W m⁻²K⁻¹, 6.84 W m⁻²K⁻¹(m/s)⁻¹ | Faiman 2008（开放支架默认，pvlib/IEC 61853） |
-| 风机功率曲线 | NREL 5-MW（切入 3 / 额定 11.4 / 切出 25 m/s，额定 5 MW，轮毂 90 m） | Jonkman et al. 2009, NREL/TP-500-38060 |
-| `a` | 待定（建议情景 0.3/0.5/0.7） | 风光装机比假设 |
+| `ρ` | 1.225 kg m⁻³ | IEC 61400-12-1 standard air density |
+| `α` | `0.37 − 0.0881·ln(v10)` | Old-project empirical formula (power law, source to be verified) |
+| Hub height | 100 m (direct `u100/v100`) | ERA5 100 m wind field |
+| `G_ref` | 1000 W m⁻² | STC (IEC 60904) |
+| `γ` | −0.005 ℃⁻¹ | Typical power temperature coefficient of crystalline-silicon modules (PVsyst/Evans 1981) |
+| `T_cell` coefficients | 4.3 / 0.943 / 0.028 / −1.528 | Old-project empirical formula (linear regression, **not Faiman**; source to be verified) |
+| Faiman `U0, U1` | 25.0 W m⁻²K⁻¹, 6.84 W m⁻²K⁻¹(m/s)⁻¹ | Faiman 2008 (open-rack default, pvlib/IEC 61853) |
+| Turbine power curve | NREL 5-MW (cut-in 3 / rated 11.4 / cut-out 25 m/s, rated 5 MW, hub 90 m) | Jonkman et al. 2009, NREL/TP-500-38060 |
+| `a` | To be decided (suggested scenarios 0.3/0.5/0.7) | Wind/solar installed-capacity ratio assumption |
 
 ---
 
-## 7. 进入计算前必须确认的假设清单
+## 7. List of Assumptions That Must Be Confirmed Before Entering Calculation
 
-1. 风机功率曲线默认 **NREL 5-MW**（切入 3 / 额定 11.4 / 切出 25 m/s）；替换
-   机型须有公开来源并同样声明参数与轮毂高度（ERA5 100 m → 本机 90 m 需幂律
-   下推）。
-2. PV 组件温**主方案暂定 Faiman（试算）**，线性式（Jerez et al. 2015 / Chenni et al.
-   2007，即旧项目经验式 4.3/0.943/0.028/−1.528）保留作敏感性对照，**不再切换公式、
-   不扩展模型**；敏感性比较见 `results_hourly/REPORT.md` §5。标注“线性式为经验回归、
-   非标准 Faiman”。
-3. 风光装机比 `a` 取**单值**还是**情景矩阵**。
-4. 日汇总口径：**日平均**还是**日照时段平均**（风、光可能不同）。
-5. 上述任一未确认，则只输出"资源量"（WPD、PVpot、CF 分别）而**不做**联合
-   `CF_mix`。
+1. The turbine power curve defaults to **NREL 5-MW** (cut-in 3 / rated 11.4 / cut-out
+   25 m/s); a replacement turbine must have a public source and likewise declare its
+   parameters and hub height (ERA5 100 m → this turbine's 90 m requires power-law
+   push-down).
+2. The PV module temperature **primary scheme tentatively uses Faiman (trial)**, and
+   the linear formula (Jerez et al. 2015 / Chenni et al. 2007, i.e. the old-project
+   empirical formula 4.3/0.943/0.028/−1.528) is kept as a sensitivity comparison, **no
+   further switching of formulas, no model extension**; see `results_hourly/REPORT.md`
+   §5 for the sensitivity comparison. Label it "the linear formula is an empirical
+   regression, not standard Faiman".
+3. Whether the wind/solar installed-capacity ratio `a` is a **single value** or a
+   **scenario matrix**.
+4. Daily aggregation convention: **daily mean** or **mean over sunlit hours** (wind and
+   solar may differ).
+5. If any of the above is unconfirmed, output only the "resource quantities" (WPD,
+   PVpot, CF separately) and **do not** produce the joint `CF_mix`.
 
-> 本轮（Block 2）**不运行**上述任何计算；本文档仅固定口径与待定项，待 ERA5
-> 数据下载并通过人工核对后再进入实现。
+> This round (Block 2) **does not run** any of the above calculations; this document
+> only fixes the conventions and the pending items, to be implemented after the ERA5
+> data are downloaded and pass manual verification.

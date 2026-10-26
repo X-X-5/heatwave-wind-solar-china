@@ -451,35 +451,41 @@ def make_fig(diff_B, n_hw_B, n_ne_B, outfig):
 
 def write_report(args, main_rows, filt_rows, sens_rows, out_md):
     L = []
-    L.append(f"# {YEAR} 年风-光联合偏低探索性描述（热浪日 vs 普通日）\n\n")
-    L.append("单年、小区域、描述性分析。不做因果归因、不做显著性检验、不做长期风险结论。\n\n")
+    L.append(f"# {YEAR} wind–solar joint-low exploratory description (heatwave vs ordinary days)\n\n")
+    L.append("Single-year, small-region, descriptive analysis. No causal attribution, no significance "
+             "testing, no long-term risk conclusion.\n\n")
 
-    L.append("## 输入\n\n")
-    L.append(f"- 日尺度潜力（日界 A）：`{os.path.basename(args.daily_a)}`\n")
-    L.append(f"- 日尺度潜力（日界 B，暂定主方案）：`{os.path.basename(args.daily_b)}`\n")
-    L.append(f"- 对齐 CN05.1 标签：`{os.path.basename(args.labels)}`（日界 UNCONFIRMED）\n")
-    L.append("- 主分析：Faiman PV 潜力（`pvpot_sum`，kWh m⁻²）+ WPD（`wpd_mean`，W m⁻²），日界 B；"
-             "日界 A 仅作敏感性检查。\n\n")
+    L.append("## Inputs\n\n")
+    L.append(f"- Daily potential (boundary A): `{os.path.basename(args.daily_a)}`\n")
+    L.append(f"- Daily potential (boundary B, provisional primary): `{os.path.basename(args.daily_b)}`\n")
+    L.append(f"- Aligned CN05.1 labels: `{os.path.basename(args.labels)}` (day boundary UNCONFIRMED)\n")
+    L.append("- Main analysis: Faiman PV potential (`pvpot_sum`, kWh m⁻²) + WPD (`wpd_mean`, W m⁻²), "
+             "boundary B; boundary A is only a sensitivity check.\n\n")
 
-    L.append("## “偏低”定义（单年、逐月、相对）\n\n")
-    L.append("- 有效能源日 = 该日 PV 潜力与 WPD 均有限。\n")
-    L.append("- P25 阈值基于当月**全部有效能源日**（不分热浪/普通），PV 与 WPD 分别计算。\n")
-    L.append(f"- 分位数算法固定：`numpy.nanquantile(x, q={QUANTILE_Q}, method='{QUANTILE_METHOD}')`。\n")
-    L.append("- 偏低 = value < P25；等于 P25 归入“不偏低”。\n")
-    L.append("- 该阈值仅用于本次单年逐月相对状态分类，**不是**长期气候阈值、能源干旱阈值或供电短缺阈值。\n")
-    L.append("- 不将 PV 与 WPD 直接相加，也不转换为未经验证的容量因子。\n\n")
+    L.append("## \"Low\" definition (single-year, per-month, relative)\n\n")
+    L.append("- Valid-energy day = the day has both finite PV potential and finite WPD.\n")
+    L.append("- The P25 threshold is computed over **all valid-energy days** of the month (all labels "
+             "mixed), separately for PV and WPD.\n")
+    L.append(f"- Fixed quantile algorithm: `numpy.nanquantile(x, q={QUANTILE_Q}, method='{QUANTILE_METHOD}')`.\n")
+    L.append("- Low = value < P25; value equal to P25 counts as \"not low\".\n")
+    L.append("- This threshold only ranks days within this single-year monthly relative classification; it is "
+             "**not** a long-term climate threshold, an energy-drought threshold, or a supply-shortage threshold.\n")
+    L.append("- PV and WPD are not added together directly, nor converted to an unverified capacity factor.\n\n")
 
-    L.append("## 四类互斥完备状态\n\n")
-    L.append("- 风低光低、风低光不低、风不低光低、风不低光不低。\n")
-    L.append("- 分组：热浪高温日 = label 3；普通非超阈值日 = label 1。\n")
-    L.append("- label 4（间隔日）、label 2（孤立超阈值日）不混入两组；label 0（缺测）排除。\n")
-    L.append("- 每组四类状态天数之和 = 该组有效日数；有样本时四类比例之和 = 1；"
-             "任一组无样本时比例与组间差值为 NaN（不填 0）。\n")
-    L.append("- “分别偏低”与“同时偏低”含义不同：风偏低比例/光偏低比例/风光同时偏低比例分别报告。\n\n")
+    L.append("## Four mutually-exclusive and exhaustive states\n\n")
+    L.append("- wind-low solar-low, wind-low solar-not-low, wind-not-low solar-low, wind-not-low solar-not-low.\n")
+    L.append("- Groups: heatwave day = label 3; ordinary non-exceedance day = label 1.\n")
+    L.append("- label 4 (gap day) and label 2 (isolated exceedance day) are not mixed into either group; "
+             "label 0 (missing) is excluded.\n")
+    L.append("- Per group, the four-state day counts sum to that group's valid-day count; with a sample the "
+             "four proportions sum to 1; when a group has no sample, the proportions and the between-group "
+             "difference are NaN (not filled with 0).\n")
+    L.append("- \"Individually low\" and \"simultaneously low\" mean different things: the wind-low proportion / "
+             "solar-low proportion / simultaneous wind+solar-low proportion are reported separately.\n\n")
 
-    L.append("## 月度空间摘要（日界 B，两组均有样本的格点）\n\n")
-    L.append("| 月 | 有效格点 | 热浪日中位数(min–max) | 普通日中位数(min–max) | "
-             "差值中位数(P25–P75) pp | 正/零/负 |\n")
+    L.append("## Monthly spatial summary (boundary B, gridpoints with both groups present)\n\n")
+    L.append("| month | valid gridpoints | heatwave median(min–max) | ordinary median(min–max) | "
+             "difference median(P25–P75) pp | pos/zero/neg |\n")
     L.append("|---|---|---|---|---|---|\n")
     for r in main_rows:
         hw_rng = f"{r['n_hw_median']:g}({r['n_hw_min']}–{r['n_hw_max']})" if r['n_valid'] else "—"
@@ -487,11 +493,12 @@ def write_report(args, main_rows, filt_rows, sens_rows, out_md):
         diff_rng = f"{r['diff_median']:.2f}({r['diff_p25']:.2f}–{r['diff_p75']:.2f})" if r['n_valid'] else "—"
         L.append(f"| {r['month']} | {r['n_valid']} | {hw_rng} | {ne_rng} | "
                  f"{diff_rng} | {r['n_pos']}/{r['n_zero']}/{r['n_neg']} |\n")
-    L.append("\n> 正差值 = 热浪日同时偏低比例高于普通日。小样本（尤其单格点当月热浪日仅个位数）"
-             "会显著放大比例的不稳定，见下节筛选。\n\n")
+    L.append("\n> A positive difference = the simultaneous-low proportion on heatwave days is higher than on "
+             "ordinary days. Small samples (especially a single gridpoint with only single-digit heatwave days "
+             "in a month) substantially amplify the instability of the proportions; see the filter section below.\n\n")
 
-    L.append(f"## 样本量敏感性（两组各 ≥{MIN_SAMPLE} 天）\n\n")
-    L.append("| 月 | 有效格点 | 差值中位数(P25–P75) pp | 正/零/负 |\n")
+    L.append(f"## Sample-size sensitivity (both groups ≥ {MIN_SAMPLE} days)\n\n")
+    L.append("| month | valid gridpoints | difference median(P25–P75) pp | pos/zero/neg |\n")
     L.append("|---|---|---|---|\n")
     for r in filt_rows:
         if r["n_valid"]:
@@ -499,14 +506,15 @@ def write_report(args, main_rows, filt_rows, sens_rows, out_md):
                      f"{r['diff_median']:.2f}({r['diff_p25']:.2f}–{r['diff_p75']:.2f}) | "
                      f"{r['n_pos']}/{r['n_zero']}/{r['n_neg']} |\n")
         else:
-            L.append(f"| {r['month']} | 0（筛选后无格点，如实报告） | — | — |\n")
-    L.append(f"\n> “{MIN_SAMPLE} 天”是本次探索性筛选，**不是**统计充分性标准；"
-             "未根据结果好坏调整门槛。\n\n")
+            L.append(f"| {r['month']} | 0 (no gridpoints after filtering; reported honestly) | — | — |\n")
+    L.append(f"\n> \"{MIN_SAMPLE} days\" is this round's exploratory filter, **not** a statistical sufficiency "
+             "criterion; the threshold was not adjusted to make the results look better.\n\n")
 
-    L.append("## 日界 A/B 敏感性\n\n")
-    L.append("在两组均有样本的**共同有效比较格点**上比较。符号翻转与一侧为零分开报告，不合并。\n\n")
-    L.append("| 月 | 共同格点 | 符号翻转 | 一侧为零 | diff_A 中位数(P25–P75) pp | "
-             "diff_B 中位数(P25–P75) pp | delta(B−A) 中位数(P25–P75) pp |\n")
+    L.append("## Boundary A/B sensitivity\n\n")
+    L.append("Compared on the **common valid comparison gridpoints** where both groups are present. Sign flips "
+             "and one-side-zero are reported separately, not merged.\n\n")
+    L.append("| month | common gridpoints | sign flips | one-side-zero | diff_A median(P25–P75) pp | "
+             "diff_B median(P25–P75) pp | delta(B−A) median(P25–P75) pp |\n")
     L.append("|---|---|---|---|---|---|---|\n")
     for r in sens_rows:
         if r["n_shared"]:
@@ -517,27 +525,35 @@ def write_report(args, main_rows, filt_rows, sens_rows, out_md):
                      f"{r['delta_median']:.2f}({r['delta_p25']:.2f}–{r['delta_p75']:.2f}) |\n")
         else:
             L.append(f"| {r['month']} | 0 | — | — | — | — | — |\n")
-    L.append("\n> “符号翻转”= 日界 A、B 下差值一正一负（均非零）；"
-             "“一侧为零”= 恰有一侧差值为 0（另一侧非零）。\n\n")
+    L.append("\n> \"Sign flip\" = under boundaries A and B the difference is positive on one and negative on "
+             "the other (both non-zero); \"one-side-zero\" = exactly one side has a zero difference "
+             "(the other side non-zero).\n\n")
     flips = [str(r["n_sign_flip"]) for r in sens_rows]
     aug = next(r for r in sens_rows if r["month"] == f"{YEAR}-08")
-    L.append("> **分层描述**：整体上，日界 A、B 下 5 个月的同时偏低比例差空间中位数"
-             "均为负值，负差值特征保持一致；但部分格点的差值方向对日界选择敏感。"
-             f"符号翻转格点数（5–9 月）分别为 {'/'.join(flips)}，其中 8 月最多，"
-             f"{aug['n_sign_flip']}/{aug['n_shared']} 个共同格点发生符号翻转"
-             f"（另有 {aug['n_one_side_zero']} 个一侧为零）。\n\n")
+    L.append("> **Stratified description**: overall, under both boundaries A and B the spatial medians of the "
+             "simultaneous-low proportion difference over the 5 months are all negative, and the negative-difference "
+             "feature is consistent; however, for some gridpoints the sign of the difference is sensitive to the "
+             "choice of day boundary. The numbers of sign-flip gridpoints (May–Sep) are "
+             f"{'/'.join(flips)}, with August the largest: "
+             f"{aug['n_sign_flip']}/{aug['n_shared']} common gridpoints flip sign "
+             f"(plus {aug['n_one_side_zero']} with one side zero).\n\n")
 
-    L.append("## 图\n\n")
-    L.append(f"- `fig_joint_low_diff_monthly_B_{YEAR}.png` — 逐月“热浪日−普通日同时偏低比例差”格点分布"
-             "（日界 B，单位 pp），上图为两组均 ≥1 天，下图为 ≥5 天筛选；标注有效比较格点数；"
-             "无数据月份明确标记为无有效格点，不画成 0。\n\n")
+    L.append("## Figure\n\n")
+    L.append(f"- `fig_joint_low_diff_monthly_B_{YEAR}.png` — per-month gridpoint distribution of the "
+             "\"heatwave − ordinary simultaneous-low proportion difference\" (boundary B, unit pp); top panel "
+             "both groups ≥ 1 day, bottom panel ≥ 5-day filter; the number of valid comparison gridpoints is "
+             "annotated; months without data are explicitly marked as no-valid-gridpoints, not drawn as 0.\n\n")
 
-    L.append("## 局限与边界\n\n")
-    L.append(f"- 单年（{YEAR}）单季节、小区域（30–33°N / 112–121°E），描述性，不代表长期或大区域规律。\n")
-    L.append("- 四类状态仅描述风、光资源组合的当月相对高低，**不能**直接证明互补性增强或减弱，"
-             "**不能**证明电力系统可靠性变化。\n")
-    L.append("- 偏低阈值为单年逐月相对 P25，样本少（尤其逐格点逐月）时比例不稳定，不做区间估计。\n")
-    L.append("- CN05.1 观测日界未确认；日界 A/B 差异已单独报告，未与 CN05.1 对齐下结论。\n")
+    L.append("## Limitations and boundaries\n\n")
+    L.append(f"- Single year ({YEAR}), single season, small region (30–33°N / 112–121°E), descriptive; does not "
+             "represent long-term or large-region patterns.\n")
+    L.append("- The four states only describe the relative high/low of the wind and solar resource combination "
+             "within a month; they **cannot** directly prove that complementarity is enhanced or weakened, and "
+             "**cannot** prove a change in power-system reliability.\n")
+    L.append("- The low threshold is a single-year per-month relative P25; with few samples (especially per "
+             "gridpoint per month) the proportions are unstable, and no interval estimates are made.\n")
+    L.append("- The CN05.1 observation day boundary is unconfirmed; the A/B difference is reported separately, "
+             "and no conclusion is drawn from alignment with CN05.1.\n")
 
     write_text_guarded(out_md, "".join(L))
 

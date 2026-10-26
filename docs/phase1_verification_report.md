@@ -1,150 +1,187 @@
-# 第一阶段针对性核对报告
+# Phase 1 Targeted Verification Report
 
-本轮为**只读核对**：仅检查代码与已生成结果，读取原始 NetCDF 与 `results/`
-下的正式产物交叉比对。**未重跑**热浪计算、**未覆盖**任何正式结果、未改原始
-数据、未改旧项目、未做 git 操作。
+This round is a **read-only verification**: it only inspects the code and
+already-generated results, reading the raw NetCDF and the official products under
+`results/` for cross-comparison. It **did not re-run** the heatwave calculation, **did
+not overwrite** any official results, did not modify the raw data, did not modify the
+old project, and did not perform git operations.
 
-核对脚本：`scripts/verify_calendar.py`、`scripts/verify_completeness.py`、
-`scripts/verify_aggregation_figures.py`（均为新增，只读）。
+Verification scripts: `scripts/verify_calendar.py`, `scripts/verify_completeness.py`,
+`scripts/verify_aggregation_figures.py` (all newly added, read-only).
 
 ---
 
-## 1. 年度数据完整性
+## 1. Annual Data Completeness
 
-对 15,292 个有效格点 × 62 年 = **948,104 个格点-年**，逐格点逐年统计 5–9 月
-（153 天）的：有效 Tmax 日数、有效阈值日数、可判定日数（两者同时有效）、
-最大连续缺测长度。
+For 15,292 valid grid cells × 62 years = **948,104 grid cell-years**, the following
+are tallied cell by cell, year by year for May–September (153 days): number of valid
+Tmax days, number of valid threshold days, decidable-day count (both valid
+simultaneously), and maximum consecutive missing run.
 
-**分布（可判定日数）**：
+**Distribution (decidable-day count)**:
 
-| 可判定日数 | 格点-年数 |
+| Decidable-day count | Grid cell-years |
 |---|---|
-| 153（完整） | 944,971 |
-| 152（缺 1 天） | 343 |
-| 0（完全不可判定） | **2,790** |
-| 1–151 之间 | **0**（不存在中间态） |
+| 153 (complete) | 944,971 |
+| 152 (1 day missing) | 343 |
+| 0 (completely undecidable) | **2,790** |
+| Between 1–151 | **0** (no intermediate state exists) |
 
-**关键发现**：共有 **2,790 个格点-年**“可判定日数 = 0”（该年 5–9 月 Tmax 全缺
-**且** 阈值全无效），但被输出为 `hw_count=0 / hw_days=0 / hw_max_dur=0`，与
-“确实无热浪”的年份在输出上不可区分。
+**Key finding**: a total of **2,790 grid cell-years** have "decidable-day count = 0"
+(in that year the May–September Tmax is entirely missing **and** the thresholds are
+entirely invalid), but they are output as `hw_count=0 / hw_days=0 / hw_max_dur=0`,
+making them indistinguishable in the output from years that "truly have no heatwave".
 
-这 2,790 = **45 个格点 × 62 年**。这 45 个格点位于 **约 22.25–25.5°N、
-119.5–121.75°E（台湾海峡/台湾沿海）**，其夏季（5–9 月）阈值全部未定义
-（基准期 1981–2010 该区夏季无有效数据），因此全年夏季不可判定。
+These 2,790 = **45 grid cells × 62 years**. These 45 grid cells are located at
+**approximately 22.25–25.5°N, 119.5–121.75°E (Taiwan Strait / coastal Taiwan)**, whose
+summer (May–September) thresholds are entirely undefined (the 1981–2010 baseline
+period has no valid summer data in this area), so the entire summer is undecidable
+every year.
 
-其余：343 个“缺 1 天”的格点-年（对应 2016–2018 年少量时间性缺测），最大连续
-缺测仅 1 天，不构成“严重缺测”；除这 2,790 外，无任何格点-年的连续缺测 > 5 天。
+The remainder: the 343 "1 day missing" grid cell-years (corresponding to a small number
+of temporal gaps in 2016–2018) have a maximum consecutive missing run of only 1 day,
+and do not constitute "severe missingness"; apart from these 2,790, no grid cell-year
+has a consecutive missing run > 5 days.
 
-**结论**：不满足“全部缺测/阈值无效年份未输出为 0”。受影响 **2,790 个格点-年
-（占 948,104 的 0.29%）**，属台湾海峡/台湾沿海的 45 个格点。
+**Conclusion**: the expectation "fully missing / threshold-invalid years are not
+output as 0" is not met. Affected are **2,790 grid cell-years (0.29% of 948,104)**,
+belonging to the 45 grid cells in the Taiwan Strait / coastal Taiwan.
 
-**建议有效性规则（最小修改）**：当某格点-年的**可判定日数 = 0**（或该格点
-夏季阈值全部未定义）时，将其 `hw_count/hw_days/hw_max_dur` 置为 NaN（未定义），
-而非 0。由于数据呈二值分布（0 / 152 / 153），该规则即可覆盖全部受影响格点-年。
-备选更严规则：要求可判定日数 ≥ 153（或 ≥152 容忍 1 天缺测），把 343 个“缺 1 天”
-格点-年也标为待复核（影响甚微，仅 1 天缺口无法藏匿 ≥3 天事件，除非缺测恰为
-3 天序列中位，属缺测处理规则的固有局限而非错误）。
+**Suggested validity rule (minimal change)**: when a grid cell-year's **decidable-day
+count = 0** (or that cell's summer thresholds are entirely undefined), set its
+`hw_count/hw_days/hw_max_dur` to NaN (undefined) instead of 0. Since the data are
+bimodally distributed (0 / 152 / 153), this rule covers all affected grid cell-years.
+An alternative stricter rule: require a decidable-day count ≥ 153 (or ≥ 152 tolerating
+1 missing day), which also marks the 343 "1 day missing" grid cell-years as
+to-be-rechecked (negligible impact; a 1-day gap cannot hide a ≥3-day event unless the
+missing day happens to be the middle of a 3-day sequence, which is an inherent
+limitation of the missing-data handling rule rather than an error).
 
 ---
 
-## 2. 阈值及事件边界
+## 2. Thresholds and Event Boundaries
 
-**(A) 闰年/非闰年 5 日窗口** —— 证据（`verify_calendar.py`）：
+**(A) Leap/non-leap year 5-day window** — evidence (`verify_calendar.py`):
 
-- `(月,日)→槽位` 映射与年份是否闰年**无关**：2000-02-28 与 2001-02-28 均 → 槽 58；
-  2000-02-29 → 槽 59（仅闰年出现）；2000-03-01 与 2001-03-01 均 → 槽 60。
-- 基准期 1981–2010 各槽位日数：槽 59（2 月 29 日）**7 天**，其余槽各 30 天。
-- 5 日窗口合并样本量（跨年按 mod 366 回绕）：
-  - 2 月 28 日（槽 58）：窗口 {56,57,58,59,60} → 127 天；
-  - 2 月 29 日（槽 59）：窗口 {57,58,59,60,61} → 127 天；
-  - 3 月 1 日（槽 60）：窗口 {58,59,60,61,62} → 127 天；
-  - 1 月 1 日（槽 0）：窗口 {0,1,2,364,365} → 150 天（含上年 12 月 30/31）；
-  - 12 月 31 日（槽 365）：窗口 {0,1,363,364,365} → 150 天（含次年 1 月 1/2）。
-- 均 ≥ 最小样本量 100，阈值可定义；跨年窗口处理正确。
+- The `(month, day)→slot` mapping is **independent** of whether the year is a leap
+  year: 2000-02-28 and 2001-02-28 both → slot 58; 2000-02-29 → slot 59 (appears only
+  in leap years); 2000-03-01 and 2001-03-01 both → slot 60.
+- Number of days per slot in the 1981–2010 baseline period: slot 59 (29 February)
+  **7 days**, all other slots 30 days each.
+- Sample sizes of the merged 5-day windows (cross-year wrap-around by mod 366):
+  - 28 February (slot 58): window {56,57,58,59,60} → 127 days;
+  - 29 February (slot 59): window {57,58,59,60,61} → 127 days;
+  - 1 March (slot 60): window {58,59,60,61,62} → 127 days;
+  - 1 January (slot 0): window {0,1,2,364,365} → 150 days (including 30/31 December
+    of the previous year);
+  - 31 December (slot 365): window {0,1,363,364,365} → 150 days (including
+    1/2 January of the following year).
+- All ≥ the minimum sample size of 100, so thresholds are definable; cross-year window
+  handling is correct.
 
-**(B) 季节边界语义** —— 当前实现为**“截断后识别”**：仅抽取每年 5–9 月 153 天，
-在该窗口内识别连续段；边界**截断**事件，不与 4 月/10 月跨边界连接。人工例子
-（固定阈值 30℃，热日 31℃）：
+**(B) Seasonal-boundary semantics** — the current implementation is **"identify after
+truncation"**: only the 153 days of May–September of each year are extracted, and
+consecutive runs are identified within that window; events are **truncated** at the
+boundaries and are not connected across the April/October boundaries. Hand-made example
+(fixed threshold 30℃, hot day 31℃):
 
-| 例子 | 截断后识别（当前） | 全年识别后统计（对照） |
+| Example | Identify after truncation (current) | Identify over the whole year then tally (reference) |
 |---|---|---|
-| 4 月 29,30 + 5 月 1,2 热 | 仅剩 5 月 1–2（2 天）→ **无事件** | 4 天事件 |
-| 9 月 29,30 + 10 月 1,2 热 | 仅剩 9 月 29–30（2 天）→ **无事件** | 4 天事件 |
-| 5 月 1,2,3 热 | 1 次、3 天 | 1 次、3 天 |
+| 29,30 Apr + 1,2 May hot | only 1–2 May remain (2 days) → **no event** | 4-day event |
+| 29,30 Sep + 1,2 Oct hot | only 29–30 Sep remain (2 days) → **no event** | 4-day event |
+| 1,2,3 May hot | 1 event, 3 days | 1 event, 3 days |
 
-**结论**：这是定义性选择，已在 `docs/heatwave_method.md` 写明“边界截断事件”。
-若改“全年识别后统计”，跨 4–5 月、9–10 月的 4 天事件会被计入，次数/日数/时长
-将略增——如需，属定义变更而非纠错。
+**Conclusion**: this is a definitional choice, already stated in
+`docs/heatwave_method.md` as "events are truncated at the boundaries". If it were
+changed to "identify over the whole year then tally", 4-day events spanning April–May
+and September–October would be counted, and the event count / number of days /
+duration would increase slightly — if needed, this is a definition change rather than
+a correction.
 
 ---
 
-## 3. 汇总口径追溯
+## 3. Tracing the Aggregation Convention
 
-四个数字均为**有效格点的未加权算术平均**（每个 0.25°×0.25° 格点等权），
-**不是**面积加权，**不是**全国/区域面积加权结果，未使用任何边界或面积权重。
+The four numbers are all **unweighted arithmetic means over valid grid cells** (each
+0.25°×0.25° grid cell equally weighted), **not** area-weighted, **not**
+nationwide/regional area-weighted results, and no boundary or area weights were used.
 
-| 数值 | 精确计算 | 分母 |
+| Value | Exact computation | Denominator |
 |---|---|---|
-| **8.3 天** | 每格点对 62 年取 `nanmean`（逐年热浪日数的均值），再对有效格点取算术平均 | 全部 **15,292** 个有效格点（含 0 热浪日格点） |
-| **27.6 天** | 仅 2022 年字段，对有效格点取算术平均 | 全部 **15,292** 个有效格点 |
-| **3.3 倍** | 27.6173 / 8.3433 = 3.310 | 同一固定有效格点集的两个均值之比 |
-| **1.5 ℃** | 每格点对 62 年取 `nanmean`（**无热浪年按 NaN 丢弃，不计为 0**），再对有效格点取算术平均 | 至少 1 年有热浪日的 **15,247** 个格点 |
+| **8.3 days** | For each grid cell take `nanmean` over the 62 years (mean of per-year heatwave-day counts), then take the arithmetic mean over valid grid cells | all **15,292** valid grid cells (including cells with 0 heatwave days) |
+| **27.6 days** | 2022 field only, arithmetic mean over valid grid cells | all **15,292** valid grid cells |
+| **3.3×** | 27.6173 / 8.3433 = 3.310 | ratio of the two means over the same fixed set of valid grid cells |
+| **1.5 ℃** | For each grid cell take `nanmean` over the 62 years (**non-heatwave years dropped as NaN, not counted as 0**), then take the arithmetic mean over valid grid cells | the **15,247** grid cells with at least 1 year having a heatwave day |
 
-使用**固定有效区**（`valid_mask`，即 1961–2022 有任一有效 Tmax 的格点，共 15,292）。
+A **fixed valid region** is used (`valid_mask`, i.e. grid cells with any valid Tmax
+over 1961–2022, 15,292 in total).
 
-两点需明确：
-1. 热浪日数/次数的均值把“无热浪年”记为 0 计入；而强度均值**丢弃**无热浪年
-   （`nanmean`），因此强度的分母（15,247）小于日数分母（15,292），二者口径不同。
-2. 上述 45 个不可判定格点（台湾海峡）在日数均值里被记为 0（拉低均值约 0.29%×
-   权重），在强度均值里被丢弃。
+Two points must be made clear:
+1. The means of the heatwave-day count / event count include "non-heatwave years" as
+   0; whereas the intensity mean **drops** non-heatwave years (`nanmean`), so the
+   intensity denominator (15,247) is smaller than the day-count denominator (15,292),
+   and the two conventions differ.
+2. The above 45 undecidable grid cells (Taiwan Strait) are counted as 0 in the
+   day-count mean (lowering the mean by about 0.29%× their weight), and are dropped in
+   the intensity mean.
 
-**措辞更正**：首轮汇报中“2022 年为全记录显著偏多年”的“显著”一词不妥——本项目
-未做任何统计检验。应改为“明显偏多/异常偏多”等无统计含义的表述。
+**Wording correction**: in the first-round report, the word "significant" in "2022 is a
+significantly high year over the whole record" is inappropriate — this project
+performed no statistical test. It should be changed to wording without statistical
+meaning such as "clearly above normal / unusually above normal".
 
 ---
 
-## 4. 内存与图件
+## 4. Memory and Figures
 
-**(A) 内存**（`hw_full.py` 实际布局）：
-- `data` 全量数组 (22645,163,283) float32 = **4.18 GB**（驻留内存）；
-- `Xb = data[baseline_idx]`：`baseline_idx` 来自 `np.where` 的 int64 索引**数组**，
-  属**花式索引 → 产生 2.02 GB 副本**（非视图；代码注释“contiguous -> view”有误，
-  `np.shares_memory` 实测为 False）；
-- 阈值 `thr2d` (366,46129) float64 ≈ 0.135 GB（后转 float32 0.067 GB）；
-- 每槽位分位数样本瞬态 ≈ 0.055 GB；
-- 峰值 ≈ **6.4 GB**（运行时可用内存约 12.9 GB，未溢出）。
-- 事件识别为逐格点循环，仅用临时小数组。
+**(A) Memory** (actual layout in `hw_full.py`):
 
-**(B) 图件色标饱和**：制图对气候态与 2022 图**共用同一色标上限**（`hw_plot.py`
-固定 vmax：count=4、days=20、max_dur=10、intensity=3）。
+- `data` full array (22645,163,283) float32 = **4.18 GB** (resident memory);
+- `Xb = data[baseline_idx]`: `baseline_idx` is an int64 index **array** from
+  `np.where`, which is **fancy indexing → producing a 2.02 GB copy** (not a view; the
+  code comment "contiguous -> view" is wrong, `np.shares_memory` measured False);
+- Threshold `thr2d` (366,46129) float64 ≈ 0.135 GB (later converted to float32
+  0.067 GB);
+- Transient per-slot quantile samples ≈ 0.055 GB;
+- Peak ≈ **6.4 GB** (available memory at runtime about 12.9 GB, no overflow).
+- Event identification is a per-grid-cell loop using only small temporary arrays.
 
-| 指标 | vmax | 气候态超上限比例 | 2022 超上限比例 | 2022 实际最大 |
+**(B) Figure colour-scale saturation**: the plotting uses **the same colour-scale
+upper limit for both the climatology and 2022 figures** (`hw_plot.py` fixed vmax:
+count=4, days=20, max_dur=10, intensity=3).
+
+| Metric | vmax | Climatology over-limit share | 2022 over-limit share | 2022 actual maximum |
 |---|---|---|---|---|
 | hw_count | 4 | 0.00% | **18.56%** | 12 |
 | hw_days | 20 | 0.00% | **23.47%** | 64 |
 | hw_max_dur | 10 | 0.00% | **10.73%** | 26 |
 | hw_intensity | 3 | 0.00% | **1.24%** | 4.36 |
 
-气候态图不饱和；**2022 图存在明显饱和**（约 1/5–1/4 有效格点被截顶）。
+The climatology figures are not saturated; **the 2022 figures are clearly saturated**
+(about 1/5–1/4 of valid grid cells are clipped at the top).
 
-**更正一处前提**：首轮汇报中“0–78 天、0–34 天”是**全 62 年**的极值，并非 2022 年
-专属。实测：全记录最大热浪日 **78 天（2020 年，海南 109.25°E/18.5°N）**、
-最长持续 **34 天（1995 年，青藏高原 91.25°E/32°N）**；**2022 年最大为 64 天、
-26 天**。即便按 2022 年的 64/26，仍远超 vmax=20/10，饱和问题成立。
+**One corrected premise**: the first-round report's "0–78 days, 0–34 days" are extremes
+over the **whole 62 years**, not specific to 2022. Measured: the record maximum number
+of heatwave days is **78 days (2020, Hainan 109.25°E/18.5°N)** and the longest
+duration is **34 days (1995, Tibetan Plateau 91.25°E/32°N)**; **the 2022 maxima are 64
+days and 26 days**. Even with 2022's 64/26, they far exceed vmax=20/10, so the
+saturation problem holds.
 
-**图件视觉核对**：本环境无法内嵌显示 PNG（返回“Unsupported Image”），因此
-图件渲染质量**待人工目检**；以上仅给出数值层面的饱和比例。
+**Visual check of figures**: this environment cannot embed/display PNGs (returns
+"Unsupported Image"), so the figure rendering quality **awaits manual inspection**;
+the above gives only the numerical-level saturation shares.
 
 ---
 
-## 5. 问题汇总与建议最小修改范围
+## 5. Issue Summary and Suggested Minimal-Change Scope
 
-| # | 问题 | 严重度 | 最小修改 |
+| # | Issue | Severity | Minimal change |
 |---|---|---|---|
-| 1 | 2,790 个不可判定格点-年（台湾海峡 45 格点）被输出为 0/0/0 | 需修正 | 在输出前加有效性门：可判定日数=0（或夏季阈值全未定义）→ 置 NaN；不改其他年份 |
-| 2 | 季节边界为“截断后识别”，跨 4–5 月/9–10 月事件不计 | 定义性选择，非错误 | 无需改；如需换口径，改为全年识别后按季节归属（属定义变更） |
-| 3 | 汇总口径：未加权格点平均，强度丢弃无热浪年、日数含 0 | 需在文档/报告明确 | 保持“未加权、非面积加权”表述，注明两指标分母不同；删去“显著”一词 |
-| 4 | 2022 图色标饱和（count 18.6%、days 23.5%、maxdur 10.7% 截顶） | 图件需重绘 | 2022 图单独设 vmax（或改用分位数上限）；本轮未重绘 |
-| 5 | `data[baseline_idx]` 花式索引产生 2.02 GB 冗余副本 | 低（内存未溢出） | 改用连续切片 `data[7305:18262]` 避免副本 |
+| 1 | 2,790 undecidable grid cell-years (45 Taiwan Strait grid cells) are output as 0/0/0 | needs fixing | add a validity gate before output: decidable-day count = 0 (or summer thresholds entirely undefined) → set NaN; leave other years unchanged |
+| 2 | The seasonal boundary is "identify after truncation", so events spanning April–May / September–October are not counted | definitional choice, not an error | no change needed; if the convention is to be changed, identify over the whole year then attribute by season (a definition change) |
+| 3 | Aggregation convention: unweighted grid-cell mean, intensity drops non-heatwave years, day count includes 0 | must be made explicit in docs/report | keep the "unweighted, non-area-weighted" wording, note that the two metrics have different denominators; remove the word "significant" |
+| 4 | 2022 figure colour-scale saturation (count 18.6%, days 23.5%, maxdur 10.7% clipped) | figures need re-plotting | set a separate vmax for the 2022 figures (or use a quantile upper limit); not re-plotted this round |
+| 5 | `data[baseline_idx]` fancy indexing produces a redundant 2.02 GB copy | low (no memory overflow) | use contiguous slicing `data[7305:18262]` to avoid the copy |
 
-以上均**不涉及**：修改原始 NetCDF、修改旧项目、git 操作、重跑正式结果。
+None of the above **involves**: modifying the raw NetCDF, modifying the old project,
+git operations, or re-running official results.
