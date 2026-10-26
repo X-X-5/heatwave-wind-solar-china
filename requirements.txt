@@ -1,0 +1,8 @@
+# Python dependencies for the heatwave-identification and ERA5 analysis scripts.
+numpy
+pandas
+xarray
+netCDF4
+matplotlib
+numba
+cdsapi

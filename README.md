@@ -123,18 +123,19 @@ significance testing or causal attribution was performed.
   for most grid cells); small samples, per-cell proportions unstable (see
   `results_joint/`).
 
-**Key figures** (kept locally, not uploaded with the repository; see the
-licensing note below):
+**Key figures** (a few verified figures are included in [`figures/`](figures/);
+the underlying data files are not distributed):
 
-- `results_fixed/fig_hw_2022.png`, `fig_hw_climatology.png` — heatwave-day
-  counts / climatology.
-- `results_case/fig_hw_2022_case_114.5E_31.75N_20220802_20220822.png` — example
-  grid-cell process (6 panels).
-- `results_monthly/fig_monthly_diff_distribution.png` — monthly heatwave −
-  ordinary difference distributions.
-- `results_complementarity/fig_wind_solar_corr_monthly_B.png` — monthly r and
-  delta_r distributions.
-- `results_joint/fig_joint_low_diff_monthly_B.png` — monthly simultaneous-low
+- `figures/fig_hw_climatology.png` — 1961–2022 climatological heatwave-day
+  count.
+- `figures/fig_hw_2022.png` — 2022 heatwave-day count.
+- `figures/fig_hw_2022_merge_cell.png` — representative grid-cell event
+  (114.50°E, 31.75°N, 2022) under the merged definition.
+- `figures/fig_monthly_diff_distribution.png` — monthly heatwave − ordinary
+  difference distributions (PVpot and WPD).
+- `figures/fig_wind_solar_corr_monthly_B.png` — monthly wind–solar correlation
+  r and delta_r distributions.
+- `figures/fig_joint_low_diff_monthly_B.png` — monthly simultaneous-low
   proportion difference distributions.
 
 ## 6. Directory structure
@@ -142,6 +143,7 @@ licensing note below):
 ```
 scripts/                  # all analysis code (heatwave identification + ERA5 potential + comparison/correlation/joint-low)
 docs/                     # method notes (heatwave method, potential scheme, ERA5 data plan)
+figures/                  # a few verified result figures (PNG) included with the repository
 data/                     # CN05.1 raw daily Tmax (not uploaded)
 data_era5/                # ERA5 2022 pilot raw download (not uploaded)
 data_era5_multi/          # ERA5 multi-year raw download (not uploaded)
@@ -233,15 +235,23 @@ and in the parameter notes inside each script.
    multi-year summary analysis (pooled correlation, cross-year summary).
 2. Confirm the CN05.1 observation day boundary with the data provider, and
    select the day-boundary definition accordingly.
-3. Decide whether to publish derived values and figures depending on
-   confirmation of the CN05.1 derived-product release license.
+3. Publish additional figures and summaries once the 2011–2022 multi-year
+   analysis is complete.
 
 ## 10. Data and release licensing
 
+- **CN05.1**: Wu & Gao (2013), "A gridded daily observation dataset over China
+  region and comparison with the other datasets", *Chinese Journal of
+  Geophysics* (in Chinese) 56(4):1102–1111, DOI 10.6038/cjg20130406. CN05.1
+  daily maximum temperature is used to identify heatwaves. The raw data, any
+  cropped or transformed copy, and the hourly / daily / per-grid-point
+  intermediate fields are **not** distributed with this repository; users must
+  obtain the data from the provider themselves and comply with the provider's
+  terms of use.
 - **ERA5**: Copernicus CDS reanalysis (`reanalysis-era5-single-levels`), used
   under its license; derived products must cite the source when published.
-- **CN05.1**: Wu & Gao (2013) gridded observations; this repository does
-  **not** bundle the raw data; the release scope of its derived products
-  (thresholds, daily labels, correlation/comparison results and figures) is
-  **not yet confirmed**, so this round only publishes the **method, code, and
-  progress notes**, and does not upload derived values or figures.
+- **Publication scope**: this repository publishes the **code, method
+  documents, and a few verified result figures and summary tables**; it does
+  not distribute the underlying raw or intermediate data. This is a
+  publication-scope choice and does **not** state that any third-party data
+  license has been confirmed.
