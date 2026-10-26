@@ -11,8 +11,8 @@ low" state change?
 The project is framed as a **descriptive comparison at the resource level**:
 no causal attribution, no significance testing, and no treating resource
 correlation as directly equivalent to joint-generation stability. The current
-output is a **pilot** (one region, one year verified; multi-year extension in
-progress).
+output is a **completed exploratory pilot** (one small region, one year
+verified; multi-year extension in progress).
 
 ---
 
@@ -102,10 +102,11 @@ Method document: `docs/heatwave_method_v2.md`.
 
 Method documents: `docs/potential_calc_scheme.md`, `docs/era5_data_plan.md`.
 
-## 5. Verified results (2022 single-year pilot; descriptive, non-causal)
+## 5. Verified results — 2022 exploratory pilot (single year, single small region; descriptive, non-causal)
 
-All results below are **single-year (2022), single-region, descriptive**; no
-significance testing or causal attribution was performed.
+All results below are from the **completed 2022 exploratory pilot** — one year
+(2022), one small region, descriptive; no significance testing or causal
+attribution was performed.
 
 - **Heatwave identification**: for the example grid cell 31.75°N/114.50°E, the
   2022 event 08-02…08-22 (2 merged segments, 20 heatwave days + 1 gap day,
@@ -207,13 +208,15 @@ and in the parameter notes inside each script.
 
 ## 8. Limitations
 
-- **CN05.1 true day boundary not yet confirmed**: the local data carry no
-  timezone/observation-window attribute, and the provenance chain can only
-  support "very likely inherits the station 20:00 day boundary", which cannot
-  be confirmed. Until confirmed, we do **not** claim the ERA5 daily values are
-  aligned with CN05.1, nor use "which alignment gives higher correlation" to
-  infer the day boundary. The A/B two-definition difference is reported
-  separately.
+- **CN05.1 observation window not specified in the source data**: the data
+  carry no timezone/observation-window attribute, so the CN05.1 statistical
+  window is not specified. Following guidance, the analysis adopts a
+  **daily-scale** treatment, and the ERA5 daily aggregation window is recorded
+  explicitly as a **working convention** (definition A = calendar 00–24 Beijing
+  time, B = 20–20 Beijing time; see §4). We do **not** claim the CN05.1 true
+  day boundary is confirmed, do **not** claim the ERA5 daily values are aligned
+  with CN05.1, and do **not** infer the day boundary from "which alignment gives
+  higher correlation". The A/B two-definition difference is reported separately.
 - **Sensitivity to day boundary A/B and cell-temperature model**: WPD is
   sensitive to the choice of day boundary; the Faiman and linear monthly PV
   totals differ by < 1%, but the hourly temperature difference P5–P95 is
@@ -231,12 +234,24 @@ and in the parameter notes inside each script.
 
 ## 9. Next steps
 
+The 2022 small-region analysis is a **completed exploratory pilot**. The next
+phase shifts to a larger regional scope and a climatological reference frame;
+the items marked "to be finalized" below are **not yet determined**.
+
 1. Complete the 2018–2021 download and processing, then the 2011–2022
    multi-year summary analysis (pooled correlation, cross-year summary).
-2. Confirm the CN05.1 observation day boundary with the data provider, and
-   select the day-boundary definition accordingly.
-3. Publish additional figures and summaries once the 2011–2022 multi-year
-   analysis is complete.
+2. Extend the analysis to the **major power-grid regions of China**; the
+   power-grid region boundaries and the definition of a **regional event** are
+   still to be finalized.
+3. Compare heatwave-period wind/solar resource against a **fixed 30-year
+   climatology**; the reference climatology (baseline period) is still to be
+   finalized.
+4. Prioritize the relationship between the **wind-resource anomaly** and
+   **heatwave intensity and duration**.
+5. Record the CN05.1 observation window with the data provider and select the
+   day-boundary working convention accordingly.
+6. Publish additional figures and summaries once the multi-year analysis is
+   complete.
 
 ## 10. Data and release licensing
 

@@ -17,7 +17,7 @@ in the public repository. It states only **completed and verified** content.
 - Annual heatwave-day counts for 1961–2022 are generated:
   `results_fixed/hw_annual_1961-2022.nc`.
 
-### Energy Analysis (ERA5, 2022 Pilot, Fully Verified)
+### Energy Analysis (ERA5, 2022 Exploratory Pilot, Fully Verified)
 
 - Download + completeness verification: 2022 warm-season hourly data (6 variables,
   3720 hours, 13×37, 0 NaN).
@@ -47,18 +47,34 @@ in the public repository. It states only **completed and verified** content.
   (`era5_multi_year_summary.py`) must wait until the 12 years of per-year analysis are
   complete and **have not yet started**.
 
+## Next Phase (Planned, Design Not Finalized)
+
+The next phase extends the analysis beyond the 2022 small-region pilot. The
+following items are **planned but not yet started**, and their design details
+are **still to be finalized, not yet determined**:
+
+- Study by the **major power-grid regions of China** (the power-grid region
+  boundaries and the **regional event definition** are still to be finalized).
+- Compare heatwave-period wind/solar resource against a **fixed 30-year
+  climatology** (the baseline reference period is still to be finalized).
+- Prioritize the relationship between the **wind-resource anomaly** and
+  **heatwave intensity and duration**.
+
 ## Honest Reporting Conventions
 
 - Before the full 12-year analysis for 2011–2022 is complete, **do not** produce full
   12-year summaries or conclusions, and do not present the 8 years of "download +
   verification + basic processing" as a complete analysis.
 - The currently citable scientific conclusions are limited to the **2022 single-year
-  pilot** (descriptive, non-causal), with boundaries in `README.md` §8.
+  exploratory pilot** (descriptive, non-causal), with boundaries in `README.md` §8.
+- The next-phase design items (30-year baseline, power-grid region boundaries,
+  regional event definition) are **not yet finalized** and must not be written as
+  determined or completed.
 
 ## Public Scope
 
 - Published: method documents (`docs/`), code (`scripts/`, excluding the orchestration
-  driver with embedded local-machine paths), README, and this progress note.
-- Not published: CN05.1 raw data, ERA5 raw downloads, all derived values/figures (the
-  public licence for CN05.1-derived products is not yet confirmed), and the
-  `results_multi/` run status and logs.
+  driver with embedded local-machine paths), README, a few verified result figures
+  (`figures/`), and this progress note.
+- Not published: CN05.1 raw data, ERA5 raw downloads, the underlying hourly / daily /
+  per-grid-point intermediate data files, and the `results_multi/` run status and logs.
