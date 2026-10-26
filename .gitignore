@@ -1,0 +1,47 @@
+# =====================================================================
+#  Heatwave / wind-solar-resource project — conservative .gitignore
+#  Only method docs, code, README, and progress notes are tracked.
+#  Raw data, derived results, and running state are local-only.
+# =====================================================================
+
+# ---- Raw scientific data (not redistributed) --------------------------
+data/
+data_era5/
+data_era5_multi/
+
+# ---- Derived results (CN05.1-derived; public scope unconfirmed) -------
+results/
+results_case/
+results_complementarity/
+results_daily/
+results_fixed/
+results_hourly/
+results_joint/
+results_merge/
+results_monthly/
+results_multi/
+
+# ---- Local orchestration state / locks / IDE ---------------------------
+.claude/
+
+# ---- Operational drivers that embed the local interpreter path ---------
+# (kept local; scientific config is documented in docs/ and reusable scripts)
+scripts/era5_orchestrator.py
+scripts/watchdog_relaunch.py
+scripts/launch_orchestrator.ps1
+scripts/launch_watchdog.ps1
+
+# ---- Python ------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+build/
+dist/
+
+# ---- Local environment / virtualenv ------------------------------------
+.env
+.venv/
+venv/
+.conda/
+.python-version
