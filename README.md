@@ -1,141 +1,184 @@
-# 热浪期间风资源、光伏潜力及其时间互补关系（试点）
+# Wind resource, PV potential, and their temporal complementarity during heatwaves (pilot)
 
-研究热浪（高温）期间，区域**风能资源**、**光伏潜力**及其**时间互补关系**如何
-变化。核心问题是：热浪日相比普通非超阈值日，风功率密度与光伏潜力的分布如何
-偏移，风—光逐日时间相关（Pearson/Spearman）与“同时偏低”状态如何改变。
+This project studies how regional **wind energy resource**, **PV (photovoltaic)
+potential**, and their **temporal complementarity** change during heatwaves
+(high-temperature episodes). The core question is: compared with ordinary
+non-exceedance days, how do the distributions of wind power density and PV
+potential shift on heatwave days, and how do the day-to-day temporal
+correlation between wind and solar (Pearson/Spearman) and the "simultaneously
+low" state change?
 
-定位为**资源层面的描述性比较**：不做因果归因，不做显著性检验，不把资源相关
-直接等同于联合发电稳定性。当前成果为**试点**（单区域、单年已核验，多年扩展
-进行中）。
+The project is framed as a **descriptive comparison at the resource level**:
+no causal attribution, no significance testing, and no treating resource
+correlation as directly equivalent to joint-generation stability. The current
+output is a **pilot** (one region, one year verified; multi-year extension in
+progress).
 
 ---
 
-## 1. 数据与处理流程
+## 1. Data and processing pipeline
 
-| 数据 | 变量 | 用途 |
+| Data | Variable | Use |
 | --- | --- | --- |
-| CN05.1（Wu & Gao, 2013）逐日最高气温，0.25°，1961–2022 | `Tmax` | 热浪阈值与事件识别 |
-| ERA5 再分析单层（CDS），小时，0.25° | `t2m`、`u100/v100`、`u10/v10`、`ssrd` | 风/光潜力计算 |
+| CN05.1 (Wu & Gao, 2013) daily maximum temperature, 0.25°, 1961–2022 | `Tmax` | Heatwave thresholds and event identification |
+| ERA5 reanalysis single levels (CDS), hourly, 0.25° | `t2m`, `u100/v100`, `u10/v10`, `ssrd` | Wind/solar potential calculation |
 
-**试点区域**：30–33°N、112–121°E，0.25° 规则网格（13×37 = 481 格点）。
+**Pilot region**: 30–33°N, 112–121°E, regular 0.25° grid (13 × 37 = 481 grid
+cells).
 
-**处理顺序**：ERA5 小时量先计算风/光潜力，再日聚合（两套日界），最后与 CN05.1
-热浪逐日标签对齐（精确坐标匹配 + 重排，无插值、无填充）。
+**Processing order**: hourly ERA5 fields are first converted to wind/solar
+potential, then daily-aggregated (under two day boundaries), and finally
+aligned with the CN05.1 daily heatwave labels (exact coordinate matching +
+reordering; no interpolation, no filling).
 
-## 2. 已完成时段（核查日期 2026-10-26）
+## 2. Completed period (checked 2026-10-26)
 
-- **热浪识别（CN05.1）**：阈值基准期 1981–2010 已完成；2022 年事件识别已核验；
-  1961–2022 年年度热浪日数已生成。
-- **能源分析（ERA5）**：2022 年暖季（5–9 月）试点**完整核验**（下载 → 小时潜力
-  → 日聚合 → 月度比较 / 相关性 / 联合偏低分析）。
-- **多年扩展（2011–2022）**：2011、2012、2013、2014、2015、2016、2017 与 2022
-  （复用试点）共 **8 年**已完成“下载 + 完整性核验 + 基础处理”；2018–2021 下载/
-  处理**进行中**；多年汇总分析（合并相关、跨年摘要）**尚未完成**，标记为
-  “扩展进行中”，未生成完整 12 年的汇总或结论。
+- **Heatwave identification (CN05.1)**: the 1981–2010 threshold baseline is
+  complete; 2022 event identification is verified; annual heatwave-day counts
+  for 1961–2022 have been produced.
+- **Energy analysis (ERA5)**: the 2022 warm season (May–September) pilot is
+  **fully verified** (download → hourly potential → daily aggregation →
+  monthly comparison / correlation / joint-low analysis).
+- **Multi-year extension (2011–2022)**: 2011, 2012, 2013, 2014, 2015, 2016,
+  2017 and 2022 (reused pilot) — **8 years** in total — have completed
+  "download + completeness check + basic processing"; 2018–2021
+  download/processing is **in progress**; the multi-year summary analysis
+  (pooled correlation, cross-year summary) is **not yet complete** and is
+  marked "extension in progress"; a full 12-year summary or conclusion has not
+  been produced.
 
-详见 [`docs/stage_progress.md`](docs/stage_progress.md)。
+See [`docs/stage_progress.md`](docs/stage_progress.md).
 
-## 3. 热浪识别方法
+## 3. Heatwave identification method
 
-- **基准期**：固定 1981–2010（30 年）。
-- **阈值**：逐格点、逐日历日 Tmax **P90**（以该日历日为中心的 5 日滑动窗口样本，
-  numpy 线性插值 Type 7；合并样本有效值 ≥ 100 才定义阈值）。
-- **热日**：Tmax **严格大于**当日阈值，且二者均有效（“可判定”）。
-- **合格热浪段**：连续 **≥ 3 天**热日。
-- **合并**：两个合格热浪段之间的完整间隔 **< 2 天**（即 1 天）时合并（可链式）；
-  缺测/不可判定日绝不跨接，孤立超阈值日阻断合并。
-- **间隔日单独标记**：事件内的 1 天凉间隔记为 label 4；“过程跨度”
-  `span = end − start + 1`（含间隔日）与“超阈值高温日数”`heatwave_days`（仅合格
-  热段内热日）**分开统计**。
-- **逐日标签**：`0` 缺测/不可判定，`1` 凉日，`2` 孤立超阈值日，`3` 热浪日，
-  `4` 间隔日。
-- **格点事件**：当前为逐格点事件识别，**格点事件数不等于区域事件数**。
+- **Baseline**: fixed 1981–2010 (30 years).
+- **Threshold**: per grid cell and per calendar day, the **P90** of Tmax
+  (samples from the 5-day sliding window centred on that calendar day, numpy
+  linear-interpolation Type 7; a threshold is defined only when the pooled
+  sample has ≥ 100 valid values).
+- **Hot day**: Tmax **strictly greater than** that day's threshold, with both
+  values valid ("decidable").
+- **Qualified heat segment**: a run of **≥ 3 consecutive** hot days.
+- **Merging**: two qualified heat segments are merged when the complete gap
+  between them is **< 2 days** (i.e. exactly 1 day) (merging is transitive /
+  chained); missing/undecidable days are never bridged, and an isolated
+  exceedance day blocks merging.
+- **Gap days labelled separately**: the 1-day cool gap inside an event is
+  labelled 4; the "process span" `span = end − start + 1` (including gap days)
+  and the "number of exceedance heat days" `heatwave_days` (qualified-segment
+  hot days only) are **counted separately**.
+- **Daily labels**: `0` missing/undecidable, `1` cool day, `2` isolated
+  exceedance day, `3` heatwave day, `4` gap day.
+- **Grid-cell events**: identification is currently per grid cell; **grid-cell
+  event counts are not regional event counts**.
 
-方法文档：`docs/heatwave_method_v2.md`。
+Method document: `docs/heatwave_method_v2.md`.
 
-## 4. 能源指标
+## 4. Energy indicators
 
-- **小时计算后再日聚合**：每格点每日须 24 个有效小时，否则记 NaN。
-- **风功率密度**：`WPD = 0.5·ρ·V100³`，`ρ = 1.225 kg m⁻³`（标准空气密度），
-  `V100 = √(u100² + v100²)`。
-- **简化光伏潜力**：`PVpot = PR · GHI`，`PR = 1 + γ·(T_cell − 25)`，
-  `γ = −0.005 ℃⁻¹`；`GHI = ssrd / 3600`（ERA5 小时 `ssrd` 为“时末 1 小时累计”）。
-  `PVpot` 为水平面、无倾角/朝向/系统损失的简化指标，**不是**并网电量或系统容量因子。
-- **组件温度**：主方案 Faiman（`T_cell = T_air + GHI/(U0 + U1·wind10)`，
-  `U0=25.0`、`U1=6.84`）；线性经验式（Jerez 2015 / Chenni 2007：
-  `4.3 + 0.943·T_air + 0.028·GHI − 1.528·wind10`）作**敏感性对照**。
-- **分组比较**：热浪日（label 3）vs 普通非超阈值日（label 1）；排除 0/2/4。
-- **相关性**：逐格点、逐月，PV 与 WPD 成对日样本计算 **Pearson r** 与 **Spearman
-  ρ**；主展示两组各 **≥10 天**、敏感性 **≥5 天**；报告组间差 `delta_r`/`delta_ρ`
-  = 热浪 − 普通。
-- **日界双口径**：A = 日历 00–24 北京时、B = 20–20 北京时（暂定主方案）；PV/辐射
-  类日累计对日界不变（两日界仅差夜间 20–24 时，无短波辐射）。
+- **Hourly first, then daily aggregation**: each grid cell/day must have 24
+  valid hours, otherwise NaN.
+- **Wind power density**: `WPD = 0.5·ρ·V100³`, `ρ = 1.225 kg m⁻³` (standard air
+  density), `V100 = √(u100² + v100²)`.
+- **Simplified PV potential**: `PVpot = PR · GHI`, `PR = 1 + γ·(T_cell − 25)`,
+  `γ = −0.005 ℃⁻¹`; `GHI = ssrd / 3600` (ERA5 hourly `ssrd` is a 1-hour
+  accumulation ending at the timestamp). `PVpot` is a simplified
+  horizontal-plane indicator with no tilt/orientation/system losses; it is
+  **not** grid-delivered energy or a system capacity factor.
+- **Cell temperature**: primary scheme Faiman (`T_cell = T_air + GHI/(U0 +
+  U1·wind10)`, `U0=25.0`, `U1=6.84`); the linear empirical form (Jerez 2015 /
+  Chenni 2007: `4.3 + 0.943·T_air + 0.028·GHI − 1.528·wind10`) is used as a
+  **sensitivity check**.
+- **Group comparison**: heatwave days (label 3) vs ordinary non-exceedance days
+  (label 1); labels 0/2/4 are excluded.
+- **Correlation**: per grid cell and per month, Pearson **r** and Spearman
+  **ρ** are computed on paired daily PV and WPD samples; the main presentation
+  requires **≥10 days** per group, sensitivity **≥5 days**; group differences
+  `delta_r`/`delta_ρ` = heatwave − ordinary are reported.
+- **Two day-boundary definitions**: A = calendar 00–24 Beijing time, B = 20–20
+  Beijing time (tentatively primary); PV/radiation-type daily accumulations are
+  invariant to the day boundary (the two boundaries differ only in the
+  nighttime 20–24 h, with no shortwave radiation).
 
-方法文档：`docs/potential_calc_scheme.md`、`docs/era5_data_plan.md`。
+Method documents: `docs/potential_calc_scheme.md`, `docs/era5_data_plan.md`.
 
-## 5. 已核验结果（2022 单年试点，描述性、非因果）
+## 5. Verified results (2022 single-year pilot; descriptive, non-causal)
 
-以下均为**单年（2022）、单区域、描述性**结果，未做显著性检验与因果归因。
+All results below are **single-year (2022), single-region, descriptive**; no
+significance testing or causal attribution was performed.
 
-- **热浪识别**：示例格点 31.75°N/114.50°E 的 2022 年事件 08-02…08-22（2 段合并，
-  20 个热浪日 + 1 个间隔日，`mean_excess = 2.50 ℃`）。
-- **月度资源比较（8 月，日界 B，Faiman PV）**：PVpot 日累计“热浪 − 普通”中位数
-  **+1.938 kWh/m²**（格点等权）；WPD 日平均“热浪 − 普通”中位数 **−7.448 W/m²**
-  （格点间差异大，方向不统一）。
-- **风—光时间相关（日界 B，两组各 ≥10 天）**：8 月 `delta_r` 中位数 **+0.566**
-  （P25–P75 0.346–0.760，Spearman `delta_ρ` +0.640）；6 月 `delta_r` 中位数
-  **−0.390**。方向对样本门槛与日界敏感（见 `results_complementarity/`）。
-- **风光同时偏低（8 月，日界 B）**：“热浪 − 普通”同时偏低比例差中位数 **−6.35 pp**
-  （多数格点为负），样本少、单格点比例不稳定（见 `results_joint/`）。
+- **Heatwave identification**: for the example grid cell 31.75°N/114.50°E, the
+  2022 event 08-02…08-22 (2 merged segments, 20 heatwave days + 1 gap day,
+  `mean_excess = 2.50 ℃`).
+- **Monthly resource comparison (August, day boundary B, Faiman PV)**: median
+  "heatwave − ordinary" daily-total PVpot **+1.938 kWh/m²** (equal-weight over
+  grid cells); median "heatwave − ordinary" daily-mean WPD **−7.448 W/m²**
+  (large spread across grid cells, direction not uniform).
+- **Wind–solar temporal correlation (day boundary B, ≥10 days per group)**:
+  August median `delta_r` **+0.566** (P25–P75 0.346–0.760, Spearman `delta_ρ`
+  +0.640); June median `delta_r` **−0.390**. The direction is sensitive to the
+  sample threshold and day boundary (see `results_complementarity/`).
+- **Simultaneous wind–solar low (August, day boundary B)**: median "heatwave −
+  ordinary" difference in simultaneous-low proportion **−6.35 pp** (negative
+  for most grid cells); small samples, per-cell proportions unstable (see
+  `results_joint/`).
 
-**主要图件**（本地保存，未随仓上传，见下节许可说明）：
+**Key figures** (kept locally, not uploaded with the repository; see the
+licensing note below):
 
-- `results_fixed/fig_hw_2022.png`、`fig_hw_climatology.png` — 热浪日数/气候态。
-- `results_case/fig_hw_2022_case_114.5E_31.75N_20220802_20220822.png` — 示例格点过程（6 分面）。
-- `results_monthly/fig_monthly_diff_distribution.png` — 逐月热浪−普通差值分布。
-- `results_complementarity/fig_wind_solar_corr_monthly_B.png` — 逐月 r 与 delta_r 分布。
-- `results_joint/fig_joint_low_diff_monthly_B.png` — 逐月同时偏低比例差分布。
+- `results_fixed/fig_hw_2022.png`, `fig_hw_climatology.png` — heatwave-day
+  counts / climatology.
+- `results_case/fig_hw_2022_case_114.5E_31.75N_20220802_20220822.png` — example
+  grid-cell process (6 panels).
+- `results_monthly/fig_monthly_diff_distribution.png` — monthly heatwave −
+  ordinary difference distributions.
+- `results_complementarity/fig_wind_solar_corr_monthly_B.png` — monthly r and
+  delta_r distributions.
+- `results_joint/fig_joint_low_diff_monthly_B.png` — monthly simultaneous-low
+  proportion difference distributions.
 
-## 6. 目录结构
+## 6. Directory structure
 
 ```
-scripts/                  # 全部分析代码（热浪识别 + ERA5 潜力 + 比较/相关/联合偏低）
-docs/                     # 方法说明（热浪方法、潜力口径、ERA5 数据计划）
-data/                     # CN05.1 原始逐日 Tmax（未随仓上传）
-data_era5/                # ERA5 2022 试点原始下载（未随仓上传）
-data_era5_multi/          # ERA5 多年原始下载（未随仓上传）
-results_fixed/            # CN05.1 热浪阈值/年度/事件（派生，未随仓上传）
+scripts/                  # all analysis code (heatwave identification + ERA5 potential + comparison/correlation/joint-low)
+docs/                     # method notes (heatwave method, potential scheme, ERA5 data plan)
+data/                     # CN05.1 raw daily Tmax (not uploaded)
+data_era5/                # ERA5 2022 pilot raw download (not uploaded)
+data_era5_multi/          # ERA5 multi-year raw download (not uploaded)
+results_fixed/            # CN05.1 heatwave thresholds / annual / events (derived, not uploaded)
 results_daily/ hourly/ monthly/ complementarity/ joint/ case/
-                          # 各阶段分析结果与报告（派生，未随仓上传）
-results_multi/            # 多年扩展运行状态、日志、备份（未随仓上传）
+                          # per-stage analysis results and reports (derived, not uploaded)
+results_multi/            # multi-year extension run state, logs, backup (not uploaded)
 ```
 
-## 7. 运行方法
+## 7. How to run
 
-所有脚本均以**项目根目录**为工作目录运行，输入/输出路径相对项目根。以下脚本
-均已在仓内跟踪，可独立复现，无需本机编排驱动。
+All scripts run from the **project root** as the working directory;
+input/output paths are relative to the project root. The scripts below are all
+tracked in the repository and can reproduce the work independently, without
+the local orchestration driver.
 
-### 7.1 热浪识别（CN05.1）
+### 7.1 Heatwave identification (CN05.1)
 
 ```bash
-python scripts/hw_merge_test.py      # 合成单元测试（无需数据，验证合并定义）
-python scripts/hw_merge_pilot.py     # 试点区 2022 事件识别 → results_merge/
-python scripts/hw_full.py            # 全区 1961-2022 热浪识别 → results_fixed/
+python scripts/hw_merge_test.py      # synthetic unit tests (no data; verify the merging definition)
+python scripts/hw_merge_pilot.py     # 2022 event identification for the pilot region -> results_merge/
+python scripts/hw_full.py            # whole-domain 1961-2022 heatwave identification -> results_fixed/
 ```
 
-### 7.2 ERA5 风/光潜力（单年流程）
+### 7.2 ERA5 wind/solar potential (single-year pipeline)
 
 ```bash
-python scripts/era5_download_2022_may_sep.py --download   # 下载小时数据（需 ~/.cdsapirc）
-python scripts/era5_unpack_check.py                       # 解包 + 完整性核验
-python scripts/era5_hourly_potential.py                   # 小时潜力（读 data_era5/unpacked_*）
+python scripts/era5_download_2022_may_sep.py --download   # download hourly data (requires ~/.cdsapirc)
+python scripts/era5_unpack_check.py                       # unpack + completeness check
+python scripts/era5_hourly_potential.py                   # hourly potential (reads data_era5/unpacked_*)
 python scripts/era5_daily_aggregate.py \
     --faim results_hourly/<hourly_faiman>.nc \
     --lin  results_hourly/<hourly_linear>.nc \
     --start 2022-08-01 --end 2022-09-01 --tag 202208
 ```
 
-### 7.3 比较与分析
+### 7.3 Comparison and analysis
 
 ```bash
 python scripts/era5_monthly_compare.py \
@@ -146,41 +189,59 @@ python scripts/era5_joint_low_analysis.py \
     --daily-a <daily_A.nc> --daily-b <daily_B.nc> --labels <labels.nc> --year 2022 --out results_joint/
 ```
 
-### 7.4 多年扩展（逐年，已公开脚本）
+### 7.4 Multi-year extension (per year, published scripts)
 
 ```bash
 python scripts/era5_multi_year.py --year 2011 --stage all --out results_multi/
 ```
 
-多年扩展的**批量编排驱动**（`era5_orchestrator.py`、`watchdog_relaunch.py` 及
-`launch_*.ps1`）因内嵌本机 Python 解释器绝对路径，**保留在本地、未随仓上传**，
-也**不是**公开复现的必需入口；复现时按 7.4 逐年调用 `era5_multi_year.py` 及上述
-分析脚本即可，其统一科学配置见 `docs/` 与各脚本内参数说明。
+The multi-year **batch orchestration driver** (`era5_orchestrator.py`,
+`watchdog_relaunch.py` and `launch_*.ps1`) embeds the absolute path of the
+local Python interpreter and is therefore **kept locally and not uploaded**,
+and is **not** a required entry point for public reproduction. To reproduce,
+call `era5_multi_year.py` year by year as in 7.4, followed by the analysis
+scripts above; the unified scientific configuration is documented in `docs/`
+and in the parameter notes inside each script.
 
-## 8. 局限
+## 8. Limitations
 
-- **CN05.1 真实日界未确认**：本地数据不含时区/观测窗口属性，来源链仅能判为
-  “很可能继承台站 20 时日界”，不能确证；在确认前**不声称** ERA5 日值与 CN05.1
-  已对齐，也不用“哪种对齐相关性更高”反推日界。A/B 双口径差异已单独报告。
-- **日界 A/B 与组件温模型敏感性**：WPD 对日界选择敏感；Faiman 与线性式月累计
-  PV 差异 < 1%，但逐时温差 P5–P95 约 −2.9 ~ +3.2 ℃，不能外推为“热浪响应对模型
-  选择不敏感”。
-- **资源相关 ≠ 联合发电稳定性**：`delta_r` 为负只表示相关关系向更负方向移动，
-  不直接等同供电稳定性改善；未做容量因子/装机比的联合发电评估。
-- **空间/年份/样本边界**：单区域（30–33°N/112–121°E）、2022 单年已核验；样本
-  少（逐格点逐月热浪日常为个位数）、存在时间自相关与空间依赖、组间样本量不同；
-  结果为非因果解释，不推广为长期或大区域规律。
+- **CN05.1 true day boundary not yet confirmed**: the local data carry no
+  timezone/observation-window attribute, and the provenance chain can only
+  support "very likely inherits the station 20:00 day boundary", which cannot
+  be confirmed. Until confirmed, we do **not** claim the ERA5 daily values are
+  aligned with CN05.1, nor use "which alignment gives higher correlation" to
+  infer the day boundary. The A/B two-definition difference is reported
+  separately.
+- **Sensitivity to day boundary A/B and cell-temperature model**: WPD is
+  sensitive to the choice of day boundary; the Faiman and linear monthly PV
+  totals differ by < 1%, but the hourly temperature difference P5–P95 is
+  roughly −2.9 ~ +3.2 ℃, so this cannot be generalized to "the heatwave
+  response is insensitive to the model choice".
+- **Resource correlation ≠ joint-generation stability**: a negative `delta_r`
+  only means the correlation moves in a more negative direction, not directly
+  an improvement in supply stability; no capacity-factor/installed-ratio
+  joint-generation assessment was done.
+- **Spatial/year/sample boundaries**: single region (30–33°N/112–121°E), 2022
+  single year verified; small samples (per-cell per-month heatwave days are
+  often single-digit), temporal autocorrelation and spatial dependence present,
+  unequal group sample sizes; results are non-causal and not generalized to
+  long-term or large-region patterns.
 
-## 9. 下一步
+## 9. Next steps
 
-1. 完成 2018–2021 年下载与处理，再完成 2011–2022 多年汇总分析（合并相关、跨年摘要）。
-2. 向数据方确认 CN05.1 观测日界，据此选定日界口径。
-3. 视 CN05.1 派生成果公开许可确认情况，再决定是否公开派生数值与图件。
+1. Complete the 2018–2021 download and processing, then the 2011–2022
+   multi-year summary analysis (pooled correlation, cross-year summary).
+2. Confirm the CN05.1 observation day boundary with the data provider, and
+   select the day-boundary definition accordingly.
+3. Decide whether to publish derived values and figures depending on
+   confirmation of the CN05.1 derived-product release license.
 
-## 10. 数据与公开许可
+## 10. Data and release licensing
 
-- **ERA5**：Copernicus CDS 再分析（`reanalysis-era5-single-levels`），按其许可
-  使用；派生成果公开时需注明来源。
-- **CN05.1**：Wu & Gao (2013) 格点化观测，本仓**未随附**原始数据；其派生成果
-  （阈值、逐日标签、相关/比较结果与图件）的公开范围**尚未确认**，故本轮仅公开
-  **方法、代码与进度说明**，暂不上传派生数值与图件。
+- **ERA5**: Copernicus CDS reanalysis (`reanalysis-era5-single-levels`), used
+  under its license; derived products must cite the source when published.
+- **CN05.1**: Wu & Gao (2013) gridded observations; this repository does
+  **not** bundle the raw data; the release scope of its derived products
+  (thresholds, daily labels, correlation/comparison results and figures) is
+  **not yet confirmed**, so this round only publishes the **method, code, and
+  progress notes**, and does not upload derived values or figures.
