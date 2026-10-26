@@ -2,8 +2,8 @@
 """
 Synthetic unit tests for the merged heatwave event definition (phase 2).
 
-Covers the advisor-confirmed cases plus the retained season-boundary / missing
-QC invariants:
+Covers the confirmed cases plus the retained season-boundary / missing QC
+invariants:
 
     T1  hot3 - cool1 - hot3            -> merge (1 process, gap day)
     T2  hot3 - cool2 - hot3            -> NO merge (2 processes)

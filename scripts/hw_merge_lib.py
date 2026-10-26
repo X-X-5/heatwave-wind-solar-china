@@ -2,10 +2,10 @@
 """
 Merged heatwave event library (phase 2, research definition).
 
-This module implements the UPDATED formal event definition adopted from the
-advisor's feedback. It supersedes the strict ">=3 consecutive days" grouping in
-`hw_lib.py` while reusing its threshold/slot/season machinery (thresholds are
-unchanged -- only the event *grouping* changes).
+This module implements the UPDATED formal event definition. It supersedes the
+strict ">=3 consecutive days" grouping in `hw_lib.py` while reusing its
+threshold/slot/season machinery (thresholds are unchanged -- only the event
+*grouping* changes).
 
 Definition implemented here (see docs/heatwave_method_v2.md):
 

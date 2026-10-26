@@ -112,20 +112,50 @@ results_multi/            # 多年扩展运行状态、日志、备份（未随�
 
 ## 7. 运行方法
 
-核心脚本（`scripts/`，均以项目根目录为工作目录运行，输入路径相对项目根）：
+所有脚本均以**项目根目录**为工作目录运行，输入/输出路径相对项目根。以下脚本
+均已在仓内跟踪，可独立复现，无需本机编排驱动。
 
-- 热浪识别：`hw_merge_pilot.py`（试点）、`hw_full.py`（全区）、`hw_lib.py` /
-  `hw_merge_lib.py`（核心库）、`hw_merge_test.py`（单元测试）。
-- ERA5 潜力：`era5_download_2022_may_sep.py`（下载）、`era5_unpack_check.py` /
-  `era5_verify.py`（核验）、`era5_hourly_potential.py`（小时潜力）、
-  `era5_daily_window.py` + `era5_daily_aggregate.py`（日聚合）。
-- 比较与分析：`era5_daily_compare.py`、`era5_monthly_compare.py`、
-  `era5_wind_solar_correlation.py`、`era5_joint_low_analysis.py`、
-  `era5_event_case.py`、`era5_tcell_sensitivity.py`。
+### 7.1 热浪识别（CN05.1）
 
-多年扩展的批量编排驱动（`era5_orchestrator.py`、`watchdog_relaunch.py` 及
-`launch_*.ps1`）因内嵌本机 Python 解释器绝对路径，**保留在本地、未随仓上传**；
-其科学配置见 `results_multi/CONFIG.md`（本地）与上述可复用的逐年脚本。
+```bash
+python scripts/hw_merge_test.py      # 合成单元测试（无需数据，验证合并定义）
+python scripts/hw_merge_pilot.py     # 试点区 2022 事件识别 → results_merge/
+python scripts/hw_full.py            # 全区 1961-2022 热浪识别 → results_fixed/
+```
+
+### 7.2 ERA5 风/光潜力（单年流程）
+
+```bash
+python scripts/era5_download_2022_may_sep.py --download   # 下载小时数据（需 ~/.cdsapirc）
+python scripts/era5_unpack_check.py                       # 解包 + 完整性核验
+python scripts/era5_hourly_potential.py                   # 小时潜力（读 data_era5/unpacked_*）
+python scripts/era5_daily_aggregate.py \
+    --faim results_hourly/<hourly_faiman>.nc \
+    --lin  results_hourly/<hourly_linear>.nc \
+    --start 2022-08-01 --end 2022-09-01 --tag 202208
+```
+
+### 7.3 比较与分析
+
+```bash
+python scripts/era5_monthly_compare.py \
+    --daily-a <daily_A.nc> --daily-b <daily_B.nc> --labels <labels.nc> --out results_monthly/
+python scripts/era5_wind_solar_correlation.py \
+    --daily-a <daily_A.nc> --daily-b <daily_B.nc> --labels <labels.nc> --out results_complementarity/
+python scripts/era5_joint_low_analysis.py \
+    --daily-a <daily_A.nc> --daily-b <daily_B.nc> --labels <labels.nc> --year 2022 --out results_joint/
+```
+
+### 7.4 多年扩展（逐年，已公开脚本）
+
+```bash
+python scripts/era5_multi_year.py --year 2011 --stage all --out results_multi/
+```
+
+多年扩展的**批量编排驱动**（`era5_orchestrator.py`、`watchdog_relaunch.py` 及
+`launch_*.ps1`）因内嵌本机 Python 解释器绝对路径，**保留在本地、未随仓上传**，
+也**不是**公开复现的必需入口；复现时按 7.4 逐年调用 `era5_multi_year.py` 及上述
+分析脚本即可，其统一科学配置见 `docs/` 与各脚本内参数说明。
 
 ## 8. 局限
 
